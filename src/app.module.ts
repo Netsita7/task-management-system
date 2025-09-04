@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { AuthModule } from './auth/auth.module';
+import { ScheduleModule } from '@nestjs/schedule';
 import { User } from './users/user.entity';
 import { Project } from './projects/project.entity';
 import { Task } from './tasks/task.entity';
@@ -11,13 +13,16 @@ import { ProjectsModule } from './projects/projects.module';
 import { TasksModule } from './tasks/tasks.module';
 import { IssuesModule } from './issues/issues.module';
 import { NotificationsModule } from './notifications/notifications.module';
-import { AuthModule } from './auth/auth.module';
+import { SchedulerService } from './scheduler/scheduler.service';
+import { SchedulerModule } from './scheduler/scheduler.module';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    ScheduleModule.forRoot(),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
@@ -32,13 +37,15 @@ import { AuthModule } from './auth/auth.module';
       }),
       inject: [ConfigService],
     }),
+    AuthModule,
     UsersModule,
     ProjectsModule,
     TasksModule,
     IssuesModule,
     NotificationsModule,
-    AuthModule,
-    // We'll add other modules later
+    SchedulerModule,
+    EventEmitterModule.forRoot()
   ],
+  providers: [SchedulerService],
 })
 export class AppModule {}

@@ -1,20 +1,22 @@
+// scheduler.module.ts
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { IssuesService } from './issues.service';
-import { IssuesController } from './issues.controller';
-import { Issue } from './issue.entity';
+import { SchedulerService } from './scheduler.service';
 import { TasksModule } from '../tasks/tasks.module';
 import { ProjectsModule } from '../projects/projects.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { Task } from '../tasks/task.entity';
+import { Project } from '../projects/project.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Issue]),
-    TasksModule,
     ProjectsModule,
+    TasksModule, 
     NotificationsModule,
+    // TypeOrmModule.forFeature([Task, Project]),
+
   ],
-  providers: [IssuesService],
-  controllers: [IssuesController],
+  providers: [SchedulerService],
+  exports: [SchedulerService],
 })
-export class IssuesModule {}
+export class SchedulerModule {}

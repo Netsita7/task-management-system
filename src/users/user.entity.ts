@@ -1,20 +1,33 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany,  BeforeInsert, CreateDateColumn } from 'typeorm';
 import { Task } from '../tasks/task.entity';
 import { Project } from '../projects/project.entity';
+import * as bcrypt from 'bcrypt';
+import { IsEmail, IsNotEmpty } from 'class-validator';
 
-@Entity()
+
+@Entity('users')
 export class User {
-  @PrimaryGeneratedColumn()
-  id: number;
-
-  @Column()
-  name: string;
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
   @Column({ unique: true })
+  @IsEmail()
   email: string;
 
-  @Column()
+    @Column()
+  @IsNotEmpty()
   password: string;
+
+  @Column()
+  @IsNotEmpty()
+  firstName: string;
+
+  @Column()
+  @IsNotEmpty()
+  lastName: string;
+
+  @CreateDateColumn()
+  createdAt: Date;
 
   @Column({ default: true })
   isActive: boolean;
@@ -24,4 +37,13 @@ export class User {
 
   @OneToMany(() => Project, project => project.manager)
   managedProjects: Project[];
+
+    @BeforeInsert()
+  async hashPassword() {
+    this.password = await bcrypt.hash(this.password, 10);
+  }
+
+  async validatePassword(password: string): Promise<boolean> {
+    return bcrypt.compare(password, this.password);
+  }
 }
