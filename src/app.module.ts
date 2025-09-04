@@ -6,6 +6,12 @@ import { Project } from './projects/project.entity';
 import { Task } from './tasks/task.entity';
 import { Issue } from './issues/issue.entity';
 import { Notification } from './notifications/notification.entity';
+import { UsersModule } from './users/users.module';
+import { ProjectsModule } from './projects/projects.module';
+import { TasksModule } from './tasks/tasks.module';
+import { IssuesModule } from './issues/issues.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -26,6 +32,12 @@ import { Notification } from './notifications/notification.entity';
       }),
       inject: [ConfigService],
     }),
+    UsersModule,
+    ProjectsModule,
+    TasksModule,
+    IssuesModule,
+    NotificationsModule,
+    AuthModule,
     // We'll add other modules later
   ],
 })
