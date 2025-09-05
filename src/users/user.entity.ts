@@ -1,9 +1,9 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany,  BeforeInsert, CreateDateColumn } from 'typeorm';
-import { Task } from '../tasks/task.entity';
-import { Project } from '../projects/project.entity';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany, BeforeInsert, CreateDateColumn } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { IsEmail, IsNotEmpty } from 'class-validator';
-
+import { Project } from '../projects/project.entity';
+import { Task } from '../tasks/task.entity';
+import { Issue } from '../issues/issue.entity';
 
 @Entity('users')
 export class User {
@@ -14,7 +14,7 @@ export class User {
   @IsEmail()
   email: string;
 
-    @Column()
+  @Column()
   @IsNotEmpty()
   password: string;
 
@@ -32,13 +32,25 @@ export class User {
   @Column({ default: true })
   isActive: boolean;
 
+  @OneToMany(() => Project, project => project.creator)
+  createdProjects: Project[];
+
+  @OneToMany(() => Project, project => project.admin)
+  administeredProjects: Project[];
+
   @OneToMany(() => Task, task => task.assignee)
-  tasks: Task[];
+  assignedTasks: Task[];
 
-  @OneToMany(() => Project, project => project.manager)
-  managedProjects: Project[];
+  @OneToMany(() => Task, task => task.reporter)
+  reportedTasks: Task[];
 
-    @BeforeInsert()
+  @OneToMany(() => Issue, issue => issue.reporter)
+  reportedIssues: Issue[];
+
+  @OneToMany(() => Issue, issue => issue.assignee)
+  assignedIssues: Issue[];
+
+  @BeforeInsert()
   async hashPassword() {
     this.password = await bcrypt.hash(this.password, 10);
   }

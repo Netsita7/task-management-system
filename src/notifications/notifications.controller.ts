@@ -1,38 +1,34 @@
-import { Controller, Get, Post, Body, Param, Delete, Patch } from '@nestjs/common';
+import { Controller, Get, Param, Patch, Delete, UseGuards, Request } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
-import { CreateNotificationDto } from './dto/create-notification.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('notifications')
+@UseGuards(JwtAuthGuard)
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 
-  @Post()
-  create(@Body() createNotificationDto: CreateNotificationDto) {
-    return this.notificationsService.create(createNotificationDto);
-  }
-
   @Get()
-  findAll() {
-    return this.notificationsService.findAll();
+  findAll(@Request() req) {
+    return this.notificationsService.findByUser(req.user.id);
   }
 
-  @Get('user/:userId')
-  findByUser(@Param('userId') userId: string) {
-    return this.notificationsService.findByUser(+userId);
+  @Get('unread-count')
+  getUnreadCount(@Request() req) {
+    return this.notificationsService.getUnreadCount(req.user.id);
   }
 
   @Patch(':id/read')
   markAsRead(@Param('id') id: string) {
-    return this.notificationsService.markAsRead(+id);
+    return this.notificationsService.markAsRead(id);
   }
 
-  @Patch('user/:userId/read-all')
-  markAllAsRead(@Param('userId') userId: string) {
-    return this.notificationsService.markAllAsRead(+userId);
+  @Patch('read-all')
+  markAllAsRead(@Request() req) {
+    return this.notificationsService.markAllAsRead(req.user.id);
   }
 
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return this.notificationsService.remove(+id);
+    return this.notificationsService.remove(id);
   }
 }

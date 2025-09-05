@@ -1,20 +1,21 @@
-// notifications.module.ts
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { NotificationsService } from './notifications.service';
 import { NotificationsController } from './notifications.controller';
 import { Notification } from './notification.entity';
 import { UsersModule } from '../users/users.module';
 import { TasksModule } from '../tasks/tasks.module';
+import { ProjectsModule } from '../projects/projects.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Notification]),
     UsersModule,
-    TasksModule, 
+    TasksModule,
+    forwardRef(() => ProjectsModule), // Use forwardRef here
   ],
-  providers: [NotificationsService],
   controllers: [NotificationsController],
+  providers: [NotificationsService],
   exports: [NotificationsService],
 })
 export class NotificationsModule {}

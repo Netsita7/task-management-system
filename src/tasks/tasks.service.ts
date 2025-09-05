@@ -1,12 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, LessThanOrEqual, Not } from 'typeorm';
 import { Task, TaskStatus } from './task.entity';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { UsersService } from '../users/users.service';
 import { ProjectsService } from '../projects/projects.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { User } from '../users/user.entity';
 
 @Injectable()
 export class TasksService {
@@ -18,108 +19,132 @@ export class TasksService {
     private eventEmitter: EventEmitter2,
   ) {}
 
-  async create(createTaskDto: CreateTaskDto): Promise<Task> {
-    const project = await this.projectsService.findOne(createTaskDto.projectId);
+  async create(createTaskDto: CreateTaskDto, user: User): Promise<Task> {
+    const project = await this.projectsService.findOne(String(createTaskDto.projectId), user);
+    const assignee = await this.usersService.findOne(String(createTaskDto.assigneeId));
+    
     const task = this.tasksRepository.create({
       ...createTaskDto,
       project,
+      assignee,
+      reporter: user,
     });
 
-    if (createTaskDto.assigneeId) {
-      const assignee = await this.usersService.findOne(String(createTaskDto.assigneeId));
-      task.assignee = assignee;
-      
-      // Emit event instead of calling notification service directly
-      this.eventEmitter.emit('task.assigned', {
-        recipientId: assignee.id,
-        taskId: task.id,
-        message: `You have been assigned a new task: ${task.title}`,
-      });
-    }
-
     const savedTask = await this.tasksRepository.save(task);
-    
-    // Update project progress
-    await this.projectsService.updateProjectStatus(project.id);
-    
+
+    // Emit event for notification
+    this.eventEmitter.emit('task.assigned', {
+      recipientId: assignee.id,
+      taskId: savedTask.id,
+      message: `You have been assigned to task: ${savedTask.title}`,
+    });
+
     return savedTask;
   }
 
-  async findAll(): Promise<Task[]> {
-    return await this.tasksRepository.find({ 
-      relations: ['assignee', 'project', 'issue'] 
+  async findAll(projectId: string, user: User): Promise<Task[]> {
+    const project = await this.projectsService.findOne(projectId, user);
+    
+    return this.tasksRepository.find({
+      where: { project: { id: projectId }, isActive: true },
+      relations: ['project', 'assignee', 'reporter', 'board'],
+      order: { createdAt: 'DESC' },
     });
   }
 
-  async findOne(id: number): Promise<Task> {
+  async findOne(id: string, user: User): Promise<Task> {
     const task = await this.tasksRepository.findOne({
-      where: { id },
-      relations: ['assignee', 'project', 'issue'],
+      where: { id, isActive: true },
+      relations: ['project', 'assignee', 'reporter', 'board'],
     });
+
     if (!task) {
-      throw new NotFoundException(`Task with ID ${id} not found`);
+      throw new NotFoundException('Task not found');
     }
+
+    // Check if user has access to the project
+    if (!task.project.isUserAdmin(user.id) && !task.project.isUserMember(user.id)) {
+      throw new ForbiddenException('You do not have access to this task');
+    }
+
     return task;
   }
 
-  async update(id: number, updateTaskDto: UpdateTaskDto): Promise<Task> {
-    const task = await this.findOne(id);
+  async update(id: string, updateTaskDto: UpdateTaskDto, user: User): Promise<Task> {
+    const task = await this.findOne(id, user);
     
-    if (updateTaskDto.projectId) {
-      const project = await this.projectsService.findOne(updateTaskDto.projectId);
-      task.project = project;
+    // Only project members can update tasks
+    if (!task.project.isUserAdmin(user.id) && !task.project.isUserMember(user.id)) {
+      throw new ForbiddenException('You do not have permission to update this task');
     }
-    
-    if (updateTaskDto.assigneeId) {
+
+    if (
+      updateTaskDto.assigneeId &&
+      String(updateTaskDto.assigneeId) !== String(task.assignee.id)
+    ) {
       const assignee = await this.usersService.findOne(String(updateTaskDto.assigneeId));
-      
-      // Emit event if assignee changed
-      if (task.assignee?.id !== assignee.id) {
-        this.eventEmitter.emit('task.assigned', {
-          recipientId: assignee.id,
-          taskId: task.id,
-          message: `You have been assigned to task: ${task.title}`,
-        });
-      }
-      
-      task.assignee = assignee;
+      await this.tasksRepository.update(id, {
+        ...updateTaskDto,
+        assignee,
+      });
+
+      // Emit event for notification if assignee changed
+      this.eventEmitter.emit('task.assigned', {
+        recipientId: assignee.id,
+        taskId: id,
+        message: `You have been assigned to task: ${task.title}`,
+      });
+    } else {
+      await this.tasksRepository.update(id, updateTaskDto);
     }
     
-    Object.assign(task, updateTaskDto);
-    const updatedTask = await this.tasksRepository.save(task);
-    
-    // Update project progress
-    if (task.project) {
-      await this.projectsService.updateProjectStatus(task.project.id);
+    const updatedTask = await this.tasksRepository.findOne({ where: { id } });
+    if (!updatedTask) {
+      throw new NotFoundException('Task not found');
     }
-    
     return updatedTask;
   }
 
-  async remove(id: number): Promise<void> {
-    const task = await this.findOne(id);
-    const projectId = task.project.id;
+  async remove(id: string, user: User): Promise<void> {
+    const task = await this.findOne(id, user);
     
-    const result = await this.tasksRepository.delete(id);
-    if (result.affected === 0) {
-      throw new NotFoundException(`Task with ID ${id} not found`);
+    // Only admin or reporter can delete tasks
+    if (!task.project.isUserAdmin(user.id) && task.reporter.id !== user.id) {
+      throw new ForbiddenException('You do not have permission to delete this task');
     }
-    
-    // Update project progress
-    await this.projectsService.updateProjectStatus(projectId);
+
+    await this.tasksRepository.update(id, { isActive: false });
   }
 
-  async getUserTasks(userId: number): Promise<Task[]> {
-    return await this.tasksRepository.find({
-      where: { assignee: { id: String(userId) } },
+  async findByUserId(userId: string): Promise<Task[]> {
+    return this.tasksRepository.find({
+      where: { assignee: { id: userId }, isActive: true },
+      relations: ['project'],
+    });
+  }
+  async getUserTasks(userId: string): Promise<Task[]> {
+    return this.tasksRepository.find({
+      where: { assignee: { id: userId }, isActive: true },
       relations: ['project'],
     });
   }
 
-  async getProjectTasks(projectId: number): Promise<Task[]> {
-    return await this.tasksRepository.find({
-      where: { project: { id: projectId } },
-      relations: ['assignee'],
+  async getProjectTasks(projectId: string, user: User): Promise<Task[]> {
+    const project = await this.projectsService.findOne(projectId, user);
+    return this.findAll(projectId, user);
+  }
+  
+  async findUpcomingDeadlines(): Promise<Task[]> {
+    const twoDaysFromNow = new Date();
+    twoDaysFromNow.setDate(twoDaysFromNow.getDate() + 2);
+
+    return this.tasksRepository.find({
+      where: {
+        deadline: LessThanOrEqual(twoDaysFromNow),
+        status: Not(TaskStatus.DONE),
+        isActive: true,
+      },
+      relations: ['assignee', 'project'],
     });
   }
 }

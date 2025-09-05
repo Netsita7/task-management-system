@@ -1,25 +1,21 @@
-import { IsNotEmpty, IsOptional, IsEnum, IsDateString } from 'class-validator';
-import { ProjectStatus } from '../project.entity';
+import { IsString, IsNotEmpty, IsOptional, IsArray, IsEnum } from 'class-validator';
+import { IssueType } from '../enums/issue-type.enum';
 
 export class CreateProjectDto {
+  @IsString()
   @IsNotEmpty()
   name: string;
 
-  @IsOptional()
-  description: string;
-
-  @IsOptional()
-  @IsEnum(ProjectStatus)
-  status: ProjectStatus;
-
-  @IsOptional()
-  @IsDateString()
-  startDate: Date;
-
-  @IsOptional()
-  @IsDateString()
-  deadline: Date;
-
+  @IsString()
   @IsNotEmpty()
-  managerId: number;
+  key: string;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  @IsArray()
+  @IsEnum(IssueType, { each: true })
+  @IsOptional()
+  issueTypes?: IssueType[];
 }

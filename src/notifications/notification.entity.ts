@@ -1,37 +1,46 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn } from 'typeorm';
 import { User } from '../users/user.entity';
+import { Project } from '../projects/project.entity';
 import { Task } from '../tasks/task.entity';
 
 export enum NotificationType {
+  PROJECT_ASSIGNMENT = 'project_assignment',
   TASK_ASSIGNMENT = 'task_assignment',
   DEADLINE_REMINDER = 'deadline_reminder',
-  STATUS_UPDATE = 'status_update',
   ISSUE_REPORTED = 'issue_reported',
+  PROJECT_REMINDER = "PROJECT_REMINDER",
 }
 
-@Entity()
+@Entity('notifications')
 export class Notification {
-  @PrimaryGeneratedColumn()
-  id: number;
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
-  @Column({
-    type: 'enum',
-    enum: NotificationType,
-  })
-  type: NotificationType;
+  @ManyToOne(() => User, { eager: true })
+  recipient: User;
 
   @Column()
   message: string;
 
+  @Column({
+    type: 'enum',
+    enum: NotificationType,
+    default: NotificationType.PROJECT_ASSIGNMENT
+  })
+  type: NotificationType;
+
+  @ManyToOne(() => Project, { nullable: true })
+  project?: Project;
+
+  @ManyToOne(() => Task, { nullable: true })
+  task?: Task;
+
   @Column({ default: false })
   isRead: boolean;
 
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  @CreateDateColumn()
   createdAt: Date;
 
-  @ManyToOne(() => User, user => user.tasks)
-  recipient: User;
-
-  @ManyToOne(() => Task, task => task.project, { nullable: true })
-  task: Task;
+  @Column({ default: true })
+  isActive: boolean;
 }

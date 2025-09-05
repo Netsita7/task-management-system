@@ -25,16 +25,24 @@ export class NotificationsService {
     });
 
     if (createNotificationDto.taskId) {
-      const task = await this.tasksService.findOne(createNotificationDto.taskId);
-      notification.task = task;
+      try {
+        const task = await this.tasksService.findOne(
+          createNotificationDto.taskId,
+          recipient
+        );
+        notification.task = task;
+      } catch (error) {
+        // Task might not exist, but we can still create the notification
+        console.warn('Task not found for notification:', createNotificationDto.taskId);
+      }
     }
 
     return await this.notificationsRepository.save(notification);
   }
 
   async createTaskAssignmentNotification(
-    recipientId: string, // Change to string
-    taskId: string, // Change to string
+    recipientId: string,
+    taskId: string,
     message: string,
   ): Promise<Notification> {
     return this.create({
@@ -46,15 +54,15 @@ export class NotificationsService {
   }
 
   async createIssueReportedNotification(
-    recipientId: string, // Change to string
-    issueId: string, // Change to string
+    recipientId: string,
+    issueId: string,
     message: string,
   ): Promise<Notification> {
     return this.create({
       type: NotificationType.ISSUE_REPORTED,
       message,
       recipientId,
-      taskId: null, 
+      taskId: undefined, // Use undefined instead of null
     });
   }
 
@@ -64,42 +72,40 @@ export class NotificationsService {
     });
   }
 
-  async findByUser(userId: string): Promise<Notification[]> { // Change to string
+  async findByUser(userId: string): Promise<Notification[]> {
     return await this.notificationsRepository.find({
-      where: { recipient: { id: userId } }, // Remove String() conversion
+      where: { recipient: { id: userId } },
       relations: ['task'],
       order: { createdAt: 'DESC' },
     });
   }
 
-  async markAsRead(id: string): Promise<Notification | null> { // Change to string
-    const notification = await this.notificationsRepository.findOne({
-      where: { id },
+  async getUnreadCount(userId: string): Promise<number> {
+    return await this.notificationsRepository.count({
+      where: { recipient: { id: userId }, isRead: false },
     });
-    
-    if (!notification) {
-      return null;
-    }
-    
-    notification.isRead = true;
-    return await this.notificationsRepository.save(notification);
   }
 
-  async markAllAsRead(userId: string): Promise<void> { // Change to string
+  async markAsRead(id: string): Promise<Notification | null> {
+    await this.notificationsRepository.update(id, { isRead: true });
+    return this.notificationsRepository.findOne({ where: { id } });
+  }
+
+  async markAllAsRead(userId: string): Promise<void> {
     await this.notificationsRepository.update(
-      { recipient: { id: userId }, isRead: false }, // Remove String() conversion
+      { recipient: { id: userId }, isRead: false },
       { isRead: true },
     );
   }
 
-  async remove(id: string): Promise<void> { // Change to string
+  async remove(id: string): Promise<void> {
     await this.notificationsRepository.delete(id);
   }
 
   @OnEvent('task.assigned')
   async handleTaskAssignedEvent(payload: { 
-    recipientId: string; // Change to string
-    taskId: string; // Change to string
+    recipientId: string; 
+    taskId: string; 
     message: string; 
   }) {
     return this.createTaskAssignmentNotification(
@@ -111,8 +117,8 @@ export class NotificationsService {
 
   @OnEvent('issue.reported')
   async handleIssueReportedEvent(payload: {
-    recipientId: string; // Change to string
-    issueId: string; // Change to string
+    recipientId: string;
+    issueId: string;
     message: string;
   }) {
     return this.createIssueReportedNotification(

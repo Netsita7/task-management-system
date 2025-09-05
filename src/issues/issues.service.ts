@@ -1,101 +1,132 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Issue, IssueStatus } from './issue.entity';
 import { CreateIssueDto } from './dto/create-issue.dto';
 import { UpdateIssueDto } from './dto/update-issue.dto';
-import { TasksService } from '../tasks/tasks.service';
 import { ProjectsService } from '../projects/projects.service';
-import { NotificationsService } from '../notifications/notifications.service';
+import { UsersService } from '../users/users.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { User } from '../users/user.entity';
 
 @Injectable()
 export class IssuesService {
   constructor(
     @InjectRepository(Issue)
     private issuesRepository: Repository<Issue>,
-    private tasksService: TasksService,
     private projectsService: ProjectsService,
-    private notificationsService: NotificationsService,
+    private usersService: UsersService,
+    private eventEmitter: EventEmitter2,
   ) {}
 
-  async create(createIssueDto: CreateIssueDto): Promise<Issue> {
-    const project = await this.projectsService.findOne(createIssueDto.projectId);
+  async create(createIssueDto: CreateIssueDto, user: User): Promise<Issue> {
+    const project = await this.projectsService.findOne(String(createIssueDto.projectId), user);
+    
     const issue = this.issuesRepository.create({
       ...createIssueDto,
       project,
+      reporter: user,
     });
 
-    if (createIssueDto.taskId) {
-      const task = await this.tasksService.findOne(createIssueDto.taskId);
-      issue.task = task;
-    }
-
     const savedIssue = await this.issuesRepository.save(issue);
-    
-    // Notify project manager about the new issue
-    await this.notificationsService.createIssueReportedNotification(
-      project.manager.id,
-      issue.id,
-      `New issue reported: ${issue.title}`,
-    );
-    
+
+    // Emit event for notification (to project admin)
+    this.eventEmitter.emit('issue.reported', {
+      recipientId: project.admin.id,
+      issueId: savedIssue.id,
+      message: `New issue reported: ${savedIssue.title}`,
+    });
+
     return savedIssue;
   }
 
-  async findAll(): Promise<Issue[]> {
-    return await this.issuesRepository.find({ 
-      relations: ['project', 'task'] 
+  // Remove this method or fix it - it requires projectId but the controller might not always provide it
+  /*
+  async findAll(projectId: string, user: User): Promise<Issue[]> {
+    const project = await this.projectsService.findOne(projectId, user);
+    
+    return this.issuesRepository.find({
+      where: { project: { id: projectId }, isActive: true },
+      relations: ['project', 'reporter', 'assignee', 'task'],
+      order: { createdAt: 'DESC' },
     });
   }
+  */
 
-  async findOne(id: number): Promise<Issue> {
+  async findOne(id: string, user: User): Promise<Issue> {
     const issue = await this.issuesRepository.findOne({
-      where: { id },
-      relations: ['project', 'task'],
+      where: { id, isActive: true },
+      relations: ['project', 'reporter', 'assignee', 'task'],
     });
+
     if (!issue) {
-      throw new NotFoundException(`Issue with ID ${id} not found`);
+      throw new NotFoundException('Issue not found');
     }
+
+    // Check if user has access to the project
+    if (!issue.project.isUserAdmin(user.id) && !issue.project.isUserMember(user.id)) {
+      throw new ForbiddenException('You do not have access to this issue');
+    }
+
     return issue;
   }
 
-  async update(id: number, updateIssueDto: UpdateIssueDto): Promise<Issue> {
-    const issue = await this.findOne(id);
-    
-    if (updateIssueDto.projectId) {
-      const project = await this.projectsService.findOne(updateIssueDto.projectId);
-      issue.project = project;
-    }
-    
-    if (updateIssueDto.taskId) {
-      const task = await this.tasksService.findOne(updateIssueDto.taskId);
-      issue.task = task;
-    }
-    
-    // Set resolvedAt if status changed to RESOLVED or CLOSED
-    if (
-      (updateIssueDto.status === IssueStatus.RESOLVED || 
-       updateIssueDto.status === IssueStatus.CLOSED) &&
-      issue.status !== updateIssueDto.status
-    ) {
-      issue.resolvedAt = new Date();
-    }
-    
-    Object.assign(issue, updateIssueDto);
-    return await this.issuesRepository.save(issue);
+  async getProjectIssues(projectId: string, user: User): Promise<Issue[]> {
+    return this.findByProjectId(projectId, user);
   }
 
-  async remove(id: number): Promise<void> {
-    const result = await this.issuesRepository.delete(id);
-    if (result.affected === 0) {
-      throw new NotFoundException(`Issue with ID ${id} not found`);
+  async update(id: string, updateIssueDto: UpdateIssueDto, user: User): Promise<Issue> {
+    const issue = await this.findOne(id, user);
+    
+    // Only project members can update issues
+    if (!issue.project.isUserAdmin(user.id) && !issue.project.isUserMember(user.id)) {
+      throw new ForbiddenException('You do not have permission to update this issue');
     }
+
+    // If status is being updated to RESOLVED, set resolvedAt
+    if (updateIssueDto.status === IssueStatus.RESOLVED && issue.status !== IssueStatus.RESOLVED) {
+      (updateIssueDto as any).resolvedAt = new Date();
+    }
+
+    await this.issuesRepository.update(id, updateIssueDto);
+    const updatedIssue = await this.issuesRepository.findOne({ where: { id } });
+    if (!updatedIssue) {
+      throw new NotFoundException('Issue not found after update');
+    }
+    return updatedIssue;
   }
 
-  async getProjectIssues(projectId: number): Promise<Issue[]> {
-    return await this.issuesRepository.find({
-      where: { project: { id: projectId } },
-      relations: ['task'],
+  async remove(id: string, user: User): Promise<void> {
+    const issue = await this.findOne(id, user);
+    
+    // Only admin or reporter can delete issues
+    if (!issue.project.isUserAdmin(user.id) && issue.reporter.id !== user.id) {
+      throw new ForbiddenException('You do not have permission to delete this issue');
+    }
+
+    await this.issuesRepository.update(id, { isActive: false });
+  }
+
+  async findByProjectId(projectId: string, user: User): Promise<Issue[]> {
+    const project = await this.projectsService.findOne(projectId, user);
+    
+    return this.issuesRepository.find({
+      where: { project: { id: projectId }, isActive: true },
+      relations: ['reporter', 'assignee'],
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  // Add a new method to get all issues for user (across all projects)
+  async findAllForUser(user: User): Promise<Issue[]> {
+    // Get all projects the user has access to
+    const projects = await this.projectsService.findAll(user);
+    const projectIds = projects.map(project => project.id);
+    
+    return this.issuesRepository.find({
+      where: { project: { id: In(projectIds) }, isActive: true },
+      relations: ['project', 'reporter', 'assignee'],
+      order: { createdAt: 'DESC' },
     });
   }
 }

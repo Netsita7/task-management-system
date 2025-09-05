@@ -1,18 +1,34 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { NotificationsController } from './notifications.controller';
+import { Controller, Get, Param, Patch, Delete, UseGuards, Request } from '@nestjs/common';
+import { NotificationsService } from './notifications.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
-describe('NotificationsController', () => {
-  let controller: NotificationsController;
+@Controller('notifications')
+@UseGuards(JwtAuthGuard)
+export class NotificationsController {
+  constructor(private readonly notificationsService: NotificationsService) {}
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [NotificationsController],
-    }).compile();
+  @Get()
+  findAll(@Request() req) {
+    return this.notificationsService.findByUser(req.user.id);
+  }
 
-    controller = module.get<NotificationsController>(NotificationsController);
-  });
+  @Get('unread-count')
+  getUnreadCount(@Request() req) {
+    return this.notificationsService.getUnreadCount(req.user.id);
+  }
 
-  it('should be defined', () => {
-    expect(controller).toBeDefined();
-  });
-});
+  @Patch(':id/read')
+  markAsRead(@Param('id') id: string) {
+    return this.notificationsService.markAsRead(id);
+  }
+
+  @Patch('read-all')
+  markAllAsRead(@Request() req) {
+    return this.notificationsService.markAllAsRead(req.user.id);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.notificationsService.remove(id);
+  }
+}

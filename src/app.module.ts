@@ -13,14 +13,23 @@ import { ProjectsModule } from './projects/projects.module';
 import { TasksModule } from './tasks/tasks.module';
 import { IssuesModule } from './issues/issues.module';
 import { NotificationsModule } from './notifications/notifications.module';
-import { SchedulerService } from './scheduler/scheduler.service';
-import { SchedulerModule } from './scheduler/scheduler.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ProjectMember } from './projects/project-member.entity';
+import { JwtModule } from '@nestjs/jwt';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+    }),
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        secret: configService.get<string>('JWT_SECRET'),
+        signOptions: { expiresIn: '1d' },
+      }),
+      inject: [ConfigService],
+      global: true,
     }),
     ScheduleModule.forRoot(),
     TypeOrmModule.forRootAsync({
@@ -32,8 +41,8 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
         username: configService.get('DB_USERNAME', 'postgres'),
         password: configService.get('DB_PASSWORD', 'password'),
         database: configService.get('DB_NAME', 'task_management'),
-        entities: [User, Project, Task, Issue, Notification],
-        synchronize: true, 
+        entities: [User, Project, Task, Issue, Notification, ProjectMember],
+        synchronize: true,
       }),
       inject: [ConfigService],
     }),
@@ -43,9 +52,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
     TasksModule,
     IssuesModule,
     NotificationsModule,
-    SchedulerModule,
     EventEmitterModule.forRoot()
   ],
-  providers: [SchedulerService],
 })
 export class AppModule {}

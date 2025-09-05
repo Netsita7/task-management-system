@@ -1,85 +1,145 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Project, ProjectStatus } from './project.entity';
+import { Project } from './project.entity';
+import { ProjectMember } from './project-member.entity';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
-import { UsersService } from '../users/users.service';
+import { AddMemberDto } from './dto/add-member.dto';
+import { User } from '../users/user.entity';
+import { ProjectRole } from './enums/project-role.enum';
 
 @Injectable()
 export class ProjectsService {
   constructor(
     @InjectRepository(Project)
     private projectsRepository: Repository<Project>,
-    private usersService: UsersService,
+    @InjectRepository(ProjectMember)
+    private projectMembersRepository: Repository<ProjectMember>,
+
   ) {}
 
-  async create(createProjectDto: CreateProjectDto): Promise<Project> {
-    const manager = await this.usersService.findOne(String(createProjectDto.managerId));
+  async create(createProjectDto: CreateProjectDto, creator: User): Promise<Project> {
+    const existingProject = await this.projectsRepository.findOne({
+      where: { key: createProjectDto.key }
+    });
+    
+    if (existingProject) {
+      throw new ForbiddenException('Project key must be unique');
+    }
+
     const project = this.projectsRepository.create({
       ...createProjectDto,
-      manager,
+      creator,
+      admin: creator,
     });
-    return await this.projectsRepository.save(project);
+
+    const savedProject = await this.projectsRepository.save(project);
+    
+    
+    
+
+    return savedProject;
   }
 
-  async findAll(): Promise<Project[]> {
-    return await this.projectsRepository.find({ relations: ['manager', 'tasks'] });
+  async findAll(user: User): Promise<Project[]> {
+    // Get projects where user is a member or admin
+    return this.projectsRepository
+      .createQueryBuilder('project')
+      .leftJoinAndSelect('project.members', 'member')
+      .leftJoinAndSelect('member.user', 'user')
+      .leftJoinAndSelect('project.admin', 'admin')
+      .leftJoinAndSelect('project.creator', 'creator')
+      .where('project.isActive = :isActive', { isActive: true })
+      .andWhere('(admin.id = :userId OR user.id = :userId)', { userId: user.id })
+      .getMany();
   }
 
-  async findOne(id: number): Promise<Project> {
+  async findOne(id: string, user: User): Promise<Project> {
     const project = await this.projectsRepository.findOne({
-      where: { id },
-      relations: ['manager', 'tasks', 'tasks.assignee'],
+      where: { id, isActive: true },
+      relations: ['members', 'members.user', 'admin', 'creator', 'boards']
     });
+
     if (!project) {
-      throw new NotFoundException(`Project with ID ${id} not found`);
+      throw new NotFoundException('Project not found');
     }
+
+    // Check if user has access to the project
+    if (!project.isUserAdmin(user.id) && !project.isUserMember(user.id)) {
+      throw new ForbiddenException('You do not have access to this project');
+    }
+
     return project;
   }
 
-  async update(id: number, updateProjectDto: UpdateProjectDto): Promise<Project> {
-    const project = await this.findOne(id);
+  async update(id: string, updateProjectDto: UpdateProjectDto, user: User): Promise<Project> {
+    const project = await this.findOne(id, user);
     
-    if (updateProjectDto.managerId) {
-      const manager = await this.usersService.findOne(String(updateProjectDto.managerId));
-      project.manager = manager;
+    // Only admin can update project
+    if (!project.isUserAdmin(user.id)) {
+      throw new ForbiddenException('Only project admin can update the project');
     }
-    
-    Object.assign(project, updateProjectDto);
-    return await this.projectsRepository.save(project);
+
+    await this.projectsRepository.update(id, updateProjectDto);
+    const updatedProject = await this.projectsRepository.findOne({ where: { id } });
+    if (!updatedProject) {
+      throw new NotFoundException('Project not found after update');
+    }
+    return updatedProject;
   }
 
-  async remove(id: number): Promise<void> {
-    const result = await this.projectsRepository.delete(id);
-    if (result.affected === 0) {
-      throw new NotFoundException(`Project with ID ${id} not found`);
+  async remove(id: string, user: User): Promise<void> {
+    const project = await this.findOne(id, user);
+    
+    // Only admin can delete project
+    if (!project.isUserAdmin(user.id)) {
+      throw new ForbiddenException('Only project admin can delete the project');
     }
+
+    await this.projectsRepository.update(id, { isActive: false });
   }
 
-  async calculateProgress(projectId: number): Promise<number> {
-    const project = await this.findOne(projectId);
-    if (!project.tasks || project.tasks.length === 0) {
-      return 0;
-    }
+  async addMember(projectId: string, addMemberDto: AddMemberDto, user: User): Promise<ProjectMember> {
+    const project = await this.findOne(projectId, user);
     
-    const totalProgress = project.tasks.reduce((sum, task) => sum + task.progress, 0);
-    return Math.round(totalProgress / project.tasks.length);
+    // Only admin can add members
+    if (!project.isUserAdmin(user.id)) {
+      throw new ForbiddenException('Only project admin can add members');
+    }
+
+    // Check if user is already a member
+    const existingMember = project.members.find(member => member.user.id === addMemberDto.userId);
+    if (existingMember) {
+      throw new ForbiddenException('User is already a member of this project');
+    }
+
+    return this.addMemberToProject(project, { id: addMemberDto.userId } as User, addMemberDto.role || ProjectRole.MEMBER);
   }
 
-  async updateProjectStatus(projectId: number): Promise<Project> {
-    const project = await this.findOne(projectId);
-    const progress = await this.calculateProgress(projectId);
-    project.progress = progress;
+  async removeMember(projectId: string, memberId: string, user: User): Promise<void> {
+    const project = await this.findOne(projectId, user);
     
-    if (progress === 100) {
-      project.status = ProjectStatus.COMPLETED;
-    } else if (progress > 0) {
-      project.status = ProjectStatus.IN_PROGRESS;
-    } else {
-      project.status = ProjectStatus.NOT_STARTED;
+    // Only admin can remove members
+    if (!project.isUserAdmin(user.id)) {
+      throw new ForbiddenException('Only project admin can remove members');
     }
-    
-    return await this.projectsRepository.save(project);
+
+    // Cannot remove yourself
+    if (memberId === user.id) {
+      throw new ForbiddenException('Cannot remove yourself from project');
+    }
+
+    await this.projectMembersRepository.delete({ project: { id: projectId }, user: { id: memberId } });
+  }
+
+  private async addMemberToProject(project: Project, user: User, role: ProjectRole): Promise<ProjectMember> {
+    const member = this.projectMembersRepository.create({
+      project,
+      user,
+      role
+    });
+
+    return this.projectMembersRepository.save(member);
   }
 }

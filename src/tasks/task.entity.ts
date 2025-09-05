@@ -1,19 +1,27 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToOne, ManyToMany, JoinTable, CreateDateColumn } from 'typeorm';
 import { User } from '../users/user.entity';
 import { Project } from '../projects/project.entity';
-import { Issue } from '../issues/issue.entity';
+import { Issue } from '../issues/issue.entity'; 
+
 
 export enum TaskStatus {
-  TODO = 'todo',
-  IN_PROGRESS = 'in_progress',
-  UNDER_REVIEW = 'under_review',
-  COMPLETED = 'completed',
+  TODO = 'To Do',
+  IN_PROGRESS = 'In Progress',
+  DONE = 'Done',
+  BLOCKED = 'Blocked'
 }
 
-@Entity()
+export enum TaskPriority {
+  LOW = 'Low',
+  MEDIUM = 'Medium',
+  HIGH = 'High',
+  URGENT = 'Urgent'
+}
+
+@Entity('tasks')
 export class Task {
-  @PrimaryGeneratedColumn()
-  id: number;
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
   @Column()
   title: string;
@@ -21,26 +29,40 @@ export class Task {
   @Column({ type: 'text', nullable: true })
   description: string;
 
+  @ManyToOne(() => Project, { onDelete: 'CASCADE' })
+  project: Project;
+
+  @ManyToOne(() => User, { eager: true })
+  assignee: User;
+
+  @ManyToOne(() => User, { eager: true })
+  reporter: User;
+
+ 
+
+  @OneToOne(() => Issue, issue => issue.task, { nullable: true }) 
+  issue: Issue;
+
   @Column({
     type: 'enum',
     enum: TaskStatus,
-    default: TaskStatus.TODO,
+    default: TaskStatus.TODO
   })
   status: TaskStatus;
 
-  @Column({ type: 'int', default: 0 })
-  progress: number; // 0-100 percentage
+  @Column({
+    type: 'enum',
+    enum: TaskPriority,
+    default: TaskPriority.MEDIUM
+  })
+  priority: TaskPriority;
 
-  @Column({ type: 'date', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   deadline: Date;
 
-  @ManyToOne(() => User, user => user.tasks)
-  assignee: User;
+  @CreateDateColumn()
+  createdAt: Date;
 
-  @ManyToOne(() => Project, project => project.tasks)
-  project: Project;
-
-  @OneToOne(() => Issue, issue => issue.task, { nullable: true })
-  @JoinColumn()
-  issue: Issue;
+  @Column({ default: true })
+  isActive: boolean;
 }
