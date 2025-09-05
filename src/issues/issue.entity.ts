@@ -41,9 +41,9 @@ resolvedAt: Date;
   @ManyToOne(() => Project, project => project.issues, { onDelete: 'CASCADE' })
   project: Project;
 
-  @OneToOne(() => Task, task => task.issue, { nullable: true })
-  @JoinColumn()
-  task: Task;
+  // @OneToOne(() => Task, task => task.issue, { nullable: true })
+  // @JoinColumn()
+  // task: Task;
 
   @ManyToOne(() => User, { eager: true })
   reporter: User;

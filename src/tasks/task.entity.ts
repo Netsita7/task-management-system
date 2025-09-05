@@ -1,21 +1,19 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToOne, ManyToMany, JoinTable, CreateDateColumn } from 'typeorm';
-import { User } from '../users/user.entity';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 import { Project } from '../projects/project.entity';
-import { Issue } from '../issues/issue.entity'; 
-
+import { User } from '../users/user.entity';
 
 export enum TaskStatus {
-  TODO = 'To Do',
-  IN_PROGRESS = 'In Progress',
-  DONE = 'Done',
-  BLOCKED = 'Blocked'
+  TODO = 'todo',
+  IN_PROGRESS = 'in-progress',
+  DONE = 'done',
+  BLOCKED = 'blocked'
 }
 
 export enum TaskPriority {
-  LOW = 'Low',
-  MEDIUM = 'Medium',
-  HIGH = 'High',
-  URGENT = 'Urgent'
+  LOW = 'low',
+  MEDIUM = 'medium',
+  HIGH = 'high',
+  URGENT = 'urgent'
 }
 
 @Entity('tasks')
@@ -29,20 +27,6 @@ export class Task {
   @Column({ type: 'text', nullable: true })
   description: string;
 
-  @ManyToOne(() => Project, { onDelete: 'CASCADE' })
-  project: Project;
-
-  @ManyToOne(() => User, { eager: true })
-  assignee: User;
-
-  @ManyToOne(() => User, { eager: true })
-  reporter: User;
-
- 
-
-  @OneToOne(() => Issue, issue => issue.task, { nullable: true }) 
-  issue: Issue;
-
   @Column({
     type: 'enum',
     enum: TaskStatus,
@@ -53,15 +37,27 @@ export class Task {
   @Column({
     type: 'enum',
     enum: TaskPriority,
-    default: TaskPriority.MEDIUM
+    nullable: true
   })
   priority: TaskPriority;
 
   @Column({ type: 'timestamp', nullable: true })
-  deadline: Date;
+  dueDate: Date;
+
+  @ManyToOne(() => Project, project => project.tasks, { onDelete: 'CASCADE' })
+  project: Project;
+
+  @ManyToOne(() => User, { eager: true, nullable: true })
+assignee: User | undefined;
+
+  @ManyToOne(() => User, { eager: true })
+  reporter: User;
 
   @CreateDateColumn()
   createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 
   @Column({ default: true })
   isActive: boolean;

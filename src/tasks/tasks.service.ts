@@ -1,3 +1,4 @@
+// src/tasks/tasks.service.ts
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThanOrEqual, Not } from 'typeorm';
@@ -20,24 +21,45 @@ export class TasksService {
   ) {}
 
   async create(createTaskDto: CreateTaskDto, user: User): Promise<Task> {
-    const project = await this.projectsService.findOne(String(createTaskDto.projectId), user);
-    const assignee = await this.usersService.findOne(String(createTaskDto.assigneeId));
+    const project = await this.projectsService.findOne(createTaskDto.projectId, user);
     
-    const task = this.tasksRepository.create({
-      ...createTaskDto,
-      project,
-      assignee,
-      reporter: user,
-    });
+    let assignee: User | undefined = undefined;
+    if (createTaskDto.assigneeId) {
+      const foundUser = await this.usersService.findOne(createTaskDto.assigneeId);
+      if (!foundUser) {
+        throw new NotFoundException('Assignee not found');
+      }
+      assignee = foundUser;
+    }
 
+    // Create task object manually to avoid TypeScript issues
+    const taskData: Partial<Task> = {
+      title: createTaskDto.title,
+      description: createTaskDto.description,
+      status: createTaskDto.status || TaskStatus.TODO,
+      priority: createTaskDto.priority,
+      project: project,
+      reporter: user,
+      assignee: assignee,
+    };
+
+    // Only add dueDate if it's provided and valid
+    if (createTaskDto.dueDate) {
+      const dueDate = new Date(createTaskDto.dueDate);
+      taskData.dueDate = isNaN(dueDate.getTime()) ? undefined : dueDate;
+    }
+
+    const task = this.tasksRepository.create(taskData);
     const savedTask = await this.tasksRepository.save(task);
 
-    // Emit event for notification
-    this.eventEmitter.emit('task.assigned', {
-      recipientId: assignee.id,
-      taskId: savedTask.id,
-      message: `You have been assigned to task: ${savedTask.title}`,
-    });
+    // Emit event for notification if assignee exists
+    if (assignee) {
+      this.eventEmitter.emit('task.assigned', {
+        recipientId: assignee.id,
+        taskId: savedTask.id,
+        message: `You have been assigned to task: ${savedTask.title}`,
+      });
+    }
 
     return savedTask;
   }
@@ -47,7 +69,7 @@ export class TasksService {
     
     return this.tasksRepository.find({
       where: { project: { id: projectId }, isActive: true },
-      relations: ['project', 'assignee', 'reporter', 'board'],
+      relations: ['project', 'assignee', 'reporter'],
       order: { createdAt: 'DESC' },
     });
   }
@@ -55,7 +77,7 @@ export class TasksService {
   async findOne(id: string, user: User): Promise<Task> {
     const task = await this.tasksRepository.findOne({
       where: { id, isActive: true },
-      relations: ['project', 'assignee', 'reporter', 'board'],
+      relations: ['project', 'assignee', 'reporter'],
     });
 
     if (!task) {
@@ -78,27 +100,54 @@ export class TasksService {
       throw new ForbiddenException('You do not have permission to update this task');
     }
 
-    if (
-      updateTaskDto.assigneeId &&
-      String(updateTaskDto.assigneeId) !== String(task.assignee.id)
-    ) {
-      const assignee = await this.usersService.findOne(String(updateTaskDto.assigneeId));
-      await this.tasksRepository.update(id, {
-        ...updateTaskDto,
-        assignee,
-      });
+    const updateData: Partial<Task> = {};
+    
+    // Update only the fields that are provided
+    if (updateTaskDto.title !== undefined) updateData.title = updateTaskDto.title;
+    if (updateTaskDto.description !== undefined) updateData.description = updateTaskDto.description;
+    if (updateTaskDto.status !== undefined) updateData.status = updateTaskDto.status;
+    if (updateTaskDto.priority !== undefined) updateData.priority = updateTaskDto.priority;
+    
+    if (updateTaskDto.dueDate !== undefined) {
+      if (updateTaskDto.dueDate) {
+        const dueDate = new Date(updateTaskDto.dueDate);
+        updateData.dueDate = isNaN(dueDate.getTime()) ? undefined : dueDate;
+      } else {
+        updateData.dueDate = undefined;
+      }
+    }
 
-      // Emit event for notification if assignee changed
+    let assigneeChanged = false;
+    if (updateTaskDto.assigneeId !== undefined) {
+      if (updateTaskDto.assigneeId && updateTaskDto.assigneeId !== task.assignee?.id) {
+        const assignee = await this.usersService.findOne(updateTaskDto.assigneeId);
+        if (!assignee) {
+          throw new NotFoundException('Assignee not found');
+        }
+        updateData.assignee = assignee;
+        assigneeChanged = true;
+      } else if (updateTaskDto.assigneeId === null || updateTaskDto.assigneeId === '') {
+        // Handle unassigning the task
+        updateData.assignee = undefined;
+        assigneeChanged = true;
+      }
+    }
+
+    await this.tasksRepository.update(id, updateData);
+
+    // Emit event for notification if assignee changed and new assignee exists
+    if (assigneeChanged && updateData.assignee) {
       this.eventEmitter.emit('task.assigned', {
-        recipientId: assignee.id,
+        recipientId: updateData.assignee.id,
         taskId: id,
         message: `You have been assigned to task: ${task.title}`,
       });
-    } else {
-      await this.tasksRepository.update(id, updateTaskDto);
     }
     
-    const updatedTask = await this.tasksRepository.findOne({ where: { id } });
+    const updatedTask = await this.tasksRepository.findOne({ 
+      where: { id },
+      relations: ['project', 'assignee', 'reporter']
+    });
     if (!updatedTask) {
       throw new NotFoundException('Task not found');
     }
@@ -122,6 +171,7 @@ export class TasksService {
       relations: ['project'],
     });
   }
+
   async getUserTasks(userId: string): Promise<Task[]> {
     return this.tasksRepository.find({
       where: { assignee: { id: userId }, isActive: true },
@@ -130,7 +180,6 @@ export class TasksService {
   }
 
   async getProjectTasks(projectId: string, user: User): Promise<Task[]> {
-    const project = await this.projectsService.findOne(projectId, user);
     return this.findAll(projectId, user);
   }
   
@@ -140,7 +189,7 @@ export class TasksService {
 
     return this.tasksRepository.find({
       where: {
-        deadline: LessThanOrEqual(twoDaysFromNow),
+        dueDate: LessThanOrEqual(twoDaysFromNow),
         status: Not(TaskStatus.DONE),
         isActive: true,
       },

@@ -1,28 +1,32 @@
-import { IsNotEmpty, IsOptional, IsEnum, IsDateString, IsNumber } from 'class-validator';
-import { TaskStatus } from '../task.entity';
+import { IsString, IsNotEmpty, IsOptional, IsEnum, IsDateString } from 'class-validator';
+import { TaskStatus, TaskPriority } from '../task.entity';
 
 export class CreateTaskDto {
+  @IsString()
   @IsNotEmpty()
   title: string;
 
+  @IsString()
   @IsOptional()
-  description: string;
+  description?: string;
 
-  @IsOptional()
   @IsEnum(TaskStatus)
-  status: TaskStatus;
-
   @IsOptional()
-  @IsNumber()
-  progress: number;
+  status?: TaskStatus;
 
+  @IsEnum(TaskPriority)
   @IsOptional()
+  priority?: TaskPriority;
+
   @IsDateString()
-  deadline: Date;
-
   @IsOptional()
-  assigneeId: number;
+  dueDate?: Date;
 
-  @IsNotEmpty()
-  projectId: number;
+  @IsString()
+  @IsNotEmpty() 
+  projectId: string;
+
+  @IsString()
+  @IsOptional()
+  assigneeId?: string;
 }
