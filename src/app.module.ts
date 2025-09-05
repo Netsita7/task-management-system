@@ -11,7 +11,7 @@ import { Notification } from './notifications/notification.entity';
 import { UsersModule } from './users/users.module';
 import { ProjectsModule } from './projects/projects.module';
 import { TasksModule } from './tasks/tasks.module';
-// import { IssuesModule } from './issues/issues.module';
+import { IssuesModule } from './issues/issues.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ProjectMember } from './projects/project-member.entity';
@@ -41,7 +41,7 @@ import { JwtModule } from '@nestjs/jwt';
         username: configService.get('DB_USERNAME', 'postgres'),
         password: configService.get('DB_PASSWORD', 'password'),
         database: configService.get('DB_NAME', 'task_management'),
-        entities: [User, Project, Task, Notification, ProjectMember],
+        entities: [User, Project, Task, Notification, ProjectMember, Issue],
         synchronize: true,
       }),
       inject: [ConfigService],
@@ -50,7 +50,7 @@ import { JwtModule } from '@nestjs/jwt';
     UsersModule,
     ProjectsModule,
     TasksModule,
-    // IssuesModule,
+    IssuesModule,
     NotificationsModule,
     EventEmitterModule.forRoot()
   ],

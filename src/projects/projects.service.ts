@@ -43,7 +43,6 @@ export class ProjectsService {
   }
 
   async findAll(user: User): Promise<Project[]> {
-    // Get projects where user is a member or admin
     return this.projectsRepository
       .createQueryBuilder('project')
       .leftJoinAndSelect('project.members', 'member')
@@ -58,7 +57,7 @@ export class ProjectsService {
   async findOne(id: string, user: User): Promise<Project> {
     const project = await this.projectsRepository.findOne({
       where: { id, isActive: true },
-      relations: ['members', 'members.user', 'admin', 'creator', 'boards']
+      relations: ['members', 'members.user', 'admin', 'creator', ]
     });
 
     if (!project) {
