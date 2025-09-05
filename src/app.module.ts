@@ -16,6 +16,8 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ProjectMember } from './projects/project-member.entity';
 import { JwtModule } from '@nestjs/jwt';
+import { ProjectInvitation } from './projects/invitation.entity'; 
+
 
 @Module({
   imports: [
@@ -41,7 +43,7 @@ import { JwtModule } from '@nestjs/jwt';
         username: configService.get('DB_USERNAME', 'postgres'),
         password: configService.get('DB_PASSWORD', 'password'),
         database: configService.get('DB_NAME', 'task_management'),
-        entities: [User, Project, Task, Notification, ProjectMember, Issue],
+        entities: [User, Project, Task, Notification, ProjectMember, Issue, ProjectInvitation],
         synchronize: true,
       }),
       inject: [ConfigService],

@@ -4,6 +4,7 @@ import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { AddMemberDto } from './dto/add-member.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { InviteMemberDto } from './dto/invite-member.dto';
 
 @Controller('projects')
 @UseGuards(JwtAuthGuard)
@@ -34,7 +35,7 @@ export class ProjectsController {
   remove(@Param('id') id: string, @Request() req) {
     return this.projectsService.remove(id, req.user);
   }
-
+  
   @Post(':id/members')
   addMember(@Param('id') id: string, @Body() addMemberDto: AddMemberDto, @Request() req) {
     return this.projectsService.addMember(id, addMemberDto, req.user);
@@ -43,5 +44,17 @@ export class ProjectsController {
   @Delete(':id/members/:memberId')
   removeMember(@Param('id') id: string, @Param('memberId') memberId: string, @Request() req) {
     return this.projectsService.removeMember(id, memberId, req.user);
+  }
+
+  // Add this endpoint for inviting members
+  @Post(':id/invite')
+  inviteMember(@Param('id') id: string, @Body() inviteMemberDto: InviteMemberDto, @Request() req) {
+    return this.projectsService.inviteMember(id, inviteMemberDto, req.user);
+  }
+
+  // Add this endpoint for accepting invitations
+  @Post('invitations/accept')
+  acceptInvitation(@Body() body: { token: string }, @Request() req) {
+    return this.projectsService.acceptInvitation(body.token, req.user);
   }
 }
