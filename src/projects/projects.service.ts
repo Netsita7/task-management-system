@@ -154,7 +154,7 @@ export class ProjectsService {
     return this.projectMembersRepository.save(member);
   }
 
-  // Add this method to invite members
+  // methods to invite members
   async inviteMember(projectId: string, inviteMemberDto: InviteMemberDto, user: User): Promise<ProjectInvitation> {
     const project = await this.findOne(projectId, user);
     
@@ -217,7 +217,7 @@ export class ProjectsService {
 
     // Emit invitation sent event
   this.eventEmitter.emit('project.invitation.sent', {
-    recipientId: inviteMemberDto.email, // You'll need to get user ID if they exist
+    recipientId: inviteMemberDto.email, 
     projectId: projectId,
     projectName: project.name,
     inviterName: `${user.firstName} ${user.lastName}`
@@ -226,7 +226,7 @@ export class ProjectsService {
     return savedInvitation;
   }
 
-  // Add this method to accept invitations
+  // method to accept invitations
   async acceptInvitation(token: string, user: User): Promise<ProjectMember> {
     let payload: any;
     try {
