@@ -43,7 +43,7 @@ export class NotificationsService {
       },
       relations: ['project', 'task'],
       order: { createdAt: 'DESC' },
-      take: 50 // Limit to recent notifications
+      take: 50 
     });
   }
 

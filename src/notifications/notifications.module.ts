@@ -6,7 +6,6 @@ import { Notification } from './notification.entity';
 import { UsersModule } from '../users/users.module';
 import { TasksModule } from '../tasks/tasks.module';
 import { ProjectsModule } from '../projects/projects.module';
-// import { ReminderService } from './reminder.service';
 import { NotificationListener } from './notification.listener';
 
 @Module({
