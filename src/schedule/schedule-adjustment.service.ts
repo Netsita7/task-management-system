@@ -273,7 +273,7 @@ export class ScheduleAdjustmentService {
       projectId: adjustment.task.project.id,
       taskId: adjustment.task.id,
       taskTitle: adjustment.task.title,
-      recipientId: adjustment.requestedBy.id // Notify requester
+      recipientId: adjustment.requestedBy.id 
     });
 
     return updatedAdjustment;
