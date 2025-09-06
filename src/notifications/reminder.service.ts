@@ -6,7 +6,7 @@ import { TasksService } from '../tasks/tasks.service';
 @Injectable()
 export class ReminderService {
   constructor(
-    private tasksService: TasksService, // Remove @InjectRepository decorator
+    private tasksService: TasksService, 
     private eventEmitter: EventEmitter2,
   ) {}
 
