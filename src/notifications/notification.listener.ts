@@ -14,7 +14,7 @@ export class NotificationListener {
     
     await this.notificationsService.createNotification(
       { id: recipientId } as any,
-      NotificationType.TASK_ASSIGNED, // Use enum value
+      NotificationType.TASK_ASSIGNED, 
       message,
       undefined,
       { id: taskId } as any
