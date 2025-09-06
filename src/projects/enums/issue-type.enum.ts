@@ -7,7 +7,6 @@ export enum IssueType {
   EPIC = 'epic'
 }
 
-// For better Swagger documentation
 export const IssueTypeApi = {
   type: 'string',
   enum: Object.values(IssueType),
