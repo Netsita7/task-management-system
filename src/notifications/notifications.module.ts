@@ -12,7 +12,7 @@ import { ProjectsModule } from '../projects/projects.module';
     TypeOrmModule.forFeature([Notification]),
     UsersModule,
     TasksModule,
-    forwardRef(() => ProjectsModule), // Use forwardRef here
+    forwardRef(() => ProjectsModule), 
   ],
   controllers: [NotificationsController],
   providers: [NotificationsService],

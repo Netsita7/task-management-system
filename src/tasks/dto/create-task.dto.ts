@@ -1,36 +1,3 @@
-// import { IsString, IsNotEmpty, IsOptional, IsEnum, IsDateString } from 'class-validator';
-// import { TaskStatus, TaskPriority } from '../task.entity';
-
-// export class CreateTaskDto {
-//   @IsString()
-//   @IsNotEmpty()
-//   title: string;
-
-//   @IsString()
-//   @IsOptional()
-//   description?: string;
-
-//   @IsEnum(TaskStatus)
-//   @IsOptional()
-//   status?: TaskStatus;
-
-//   @IsEnum(TaskPriority)
-//   @IsOptional()
-//   priority?: TaskPriority;
-
-//   @IsDateString()
-//   @IsOptional()
-//   dueDate?: Date;
-
-//   @IsString()
-//   @IsOptional()  
-//   projectId: string;
-
-//   @IsString()
-//   @IsOptional()
-//   assigneeId?: string;
-// }
-// create-task.dto.ts
 import { IsString, IsNotEmpty, IsOptional, IsEnum, IsDateString } from 'class-validator';
 import { TaskStatus, TaskPriority } from '../task.entity';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';

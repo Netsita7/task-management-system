@@ -9,10 +9,14 @@ import { User } from '../users/user.entity';
 import { MailModule } from '../mail/mail.module';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ScheduleAdjustment } from '../schedule/schedule-adjustment.entity';
+import { ScheduleAdjustmentService } from '../schedule/schedule-adjustment.service';
+import { ScheduleAdjustmentController } from '../schedule/schedule-adjustment.controller';
+import { Task } from '../tasks/task.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Project, ProjectMember, ProjectInvitation, User]),
+    TypeOrmModule.forFeature([Project, ProjectMember, ProjectInvitation, User, ScheduleAdjustment, Task]),
     MailModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -23,8 +27,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
       inject: [ConfigService],
     }),
   ],
-  controllers: [ProjectsController],
-  providers: [ProjectsService],
+  controllers: [ProjectsController, ScheduleAdjustmentController],
+  providers: [ProjectsService, ScheduleAdjustmentService],
   exports: [ProjectsService],
 })
 export class ProjectsModule {}
