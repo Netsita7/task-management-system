@@ -46,13 +46,13 @@ export class ProjectsController {
     return this.projectsService.removeMember(id, memberId, req.user);
   }
 
-  // Add this endpoint for inviting members
+  // endpoints for inviting members
   @Post(':id/invite')
   inviteMember(@Param('id') id: string, @Body() inviteMemberDto: InviteMemberDto, @Request() req) {
     return this.projectsService.inviteMember(id, inviteMemberDto, req.user);
   }
 
-  // Add this endpoint for accepting invitations
+  // endpoints for accepting invitations
   @Post('invitations/accept')
   acceptInvitation(@Body() body: { token: string }, @Request() req) {
     return this.projectsService.acceptInvitation(body.token, req.user);
