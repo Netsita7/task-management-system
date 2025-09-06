@@ -30,7 +30,7 @@ export class NotificationListener {
     
     await this.notificationsService.createNotification(
       { id: recipientId } as any,
-      NotificationType.PROJECT_INVITATION, // Use enum value
+      NotificationType.PROJECT_INVITATION, 
       message,
       { id: projectId } as any
     );
