@@ -1,3 +1,0 @@
-"email":"orthodoxawit7@gmail.com","password":"pass123",        
-"email": "user@example.com", "password": "password123"....creator 
-"email":"ort@gmail.com", "password":"pass123"
