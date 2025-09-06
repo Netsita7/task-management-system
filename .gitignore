@@ -2,8 +2,7 @@
 /dist
 /node_modules
 /build
-.env
-.txt
+
 # Logs
 logs
 *.log
@@ -28,6 +27,7 @@ lerna-debug.log*
 *.launch
 .settings/
 *.sublime-workspace
+.txt
 
 # IDE - VSCode
 .vscode/*
