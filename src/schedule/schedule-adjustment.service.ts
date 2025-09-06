@@ -308,7 +308,7 @@ export class ScheduleAdjustmentService {
       taskId: adjustment.task.id,
       taskTitle: adjustment.task.title,
       reason: reason,
-      recipientId: adjustment.requestedBy.id // Notify requester
+      recipientId: adjustment.requestedBy.id 
     });
 
     return updatedAdjustment;
