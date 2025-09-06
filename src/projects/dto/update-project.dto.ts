@@ -20,12 +20,4 @@ export class UpdateProjectDto extends PartialType(CreateProjectDto) {
     example: 'Updated project description'
   })
   description?: string;
-
-//   @ApiPropertyOptional({
-//     description: 'Available issue types for the project',
-//     enum: IssueType,
-//     isArray: true,
-//     example: [IssueType.TASK, IssueType.BUG]
-//   })
-//   issueTypes?: IssueType[];
 }
