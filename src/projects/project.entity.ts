@@ -45,12 +45,12 @@ export class Project {
   isActive: boolean;
   issues: any;
 
-  // Helper method to check if user has admin access
+  // to check if user has admin access
   isUserAdmin(userId: string): boolean {
     return this.admin.id === userId;
   }
 
-  // Helper method to check if user is a member
+  // to check if user is a member
   isUserMember(userId: string): boolean {
     return this.members.some(member => member.user.id === userId);
   }
