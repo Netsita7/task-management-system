@@ -60,7 +60,7 @@ export class NotificationListener {
     
     await this.notificationsService.createNotification(
       { id: recipientId } as any,
-      NotificationType.SCHEDULE_ADJUSTMENT, // Use enum value
+      NotificationType.SCHEDULE_ADJUSTMENT,
       message,
       { id: projectId } as any,
       { id: taskId } as any
