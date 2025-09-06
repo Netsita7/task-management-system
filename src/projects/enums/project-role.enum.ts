@@ -6,7 +6,6 @@ export enum ProjectRole {
   VIEWER = 'viewer'
 }
 
-// For better Swagger documentation
 export const ProjectRoleApi = {
   type: 'string',
   enum: Object.values(ProjectRole),
