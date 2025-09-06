@@ -216,7 +216,7 @@ export class ScheduleAdjustmentService {
       projectId: task.project.id,
       taskId: task.id,
       taskTitle: task.title,
-      recipientId: task.project.admin.id // Notify project admin
+      recipientId: task.project.admin.id 
     });
 
     return savedAdjustment;
