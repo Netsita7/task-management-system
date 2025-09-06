@@ -40,19 +40,6 @@ export class IssuesService {
     return savedIssue;
   }
 
-  // Remove this method or fix it - it requires projectId but the controller might not always provide it
-  /*
-  async findAll(projectId: string, user: User): Promise<Issue[]> {
-    const project = await this.projectsService.findOne(projectId, user);
-    
-    return this.issuesRepository.find({
-      where: { project: { id: projectId }, isActive: true },
-      relations: ['project', 'reporter', 'assignee', 'task'],
-      order: { createdAt: 'DESC' },
-    });
-  }
-  */
-
   async findOne(id: string, user: User): Promise<Issue> {
     const issue = await this.issuesRepository.findOne({
       where: { id, isActive: true },
