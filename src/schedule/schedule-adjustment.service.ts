@@ -1,7 +1,7 @@
 // schedule-adjustment.service.ts
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Not } from 'typeorm'; // Added Not import
+import { Repository, Not } from 'typeorm';
 import { ScheduleAdjustment, AdjustmentType, AdjustmentStatus } from './schedule-adjustment.entity';
 import { CreateScheduleAdjustmentDto } from './dto/create-schedule-adjustment.dto';
 import { Task, TaskStatus, TaskPriority } from '../tasks/task.entity';
@@ -53,7 +53,7 @@ export class ScheduleAdjustmentService {
       where: { 
         project: { id: projectId }, 
         isActive: true,
-        status: Not(TaskStatus.DONE) as any // Fixed Not usage
+        status: Not(TaskStatus.DONE) as any
       },
       relations: ['assignee']
     });
@@ -133,7 +133,7 @@ export class ScheduleAdjustmentService {
   async requestAdjustment(createDto: CreateScheduleAdjustmentDto, requester: User): Promise<ScheduleAdjustment> {
     const task = await this.taskRepository.findOne({
       where: { id: createDto.taskId, isActive: true },
-      relations: ['project', 'assignee']
+      relations: ['project', 'project.admin', 'assignee']
     });
 
     if (!task) {
@@ -173,12 +173,12 @@ export class ScheduleAdjustmentService {
 
       // Check new assignee's workload
       const newAssigneeWorkload = await this.getUserWorkload(createDto.newAssigneeId);
-      if (newAssigneeWorkload.totalTasks >= 10) { // Threshold can be configured
+      if (newAssigneeWorkload.totalTasks >= 10) {
         throw new BadRequestException('New assignee has too many tasks already');
       }
     }
 
-    // Create the adjustment request - fixed object creation
+    // Create the adjustment request
     const adjustmentData: Partial<ScheduleAdjustment> = {
       type: createDto.type,
       task,
@@ -212,16 +212,15 @@ export class ScheduleAdjustmentService {
     const adjustment = this.adjustmentRepository.create(adjustmentData);
     const savedAdjustment = await this.adjustmentRepository.save(adjustment);
 
-    // Notify project admins about the adjustment request
+    // In requestAdjustment method, update the event:
     this.eventEmitter.emit('schedule.adjustment.requested', {
-      adjustmentId: savedAdjustment.id, // Fixed property access
+      projectId: task.project.id,
       taskId: task.id,
       taskTitle: task.title,
-      requesterId: requester.id,
-      projectId: task.project.id
+      recipientId: task.project.admin.id // Notify project admin
     });
 
-    return savedAdjustment; // Fixed return type
+    return savedAdjustment;
   }
 
   async approveAdjustment(adjustmentId: string, approver: User): Promise<ScheduleAdjustment> {
@@ -270,14 +269,12 @@ export class ScheduleAdjustmentService {
 
     const updatedAdjustment = await this.adjustmentRepository.save(adjustment);
 
-    // Notify involved parties
+    // In approveAdjustment method, update the event:
     this.eventEmitter.emit('schedule.adjustment.approved', {
-      adjustmentId: updatedAdjustment.id,
+      projectId: adjustment.task.project.id,
       taskId: adjustment.task.id,
       taskTitle: adjustment.task.title,
-      approverId: approver.id,
-      requesterId: adjustment.requestedBy.id,
-      newAssigneeId: adjustment.newAssignee?.id
+      recipientId: adjustment.requestedBy.id // Notify requester
     });
 
     return updatedAdjustment;
@@ -286,7 +283,7 @@ export class ScheduleAdjustmentService {
   async rejectAdjustment(adjustmentId: string, rejecter: User, reason: string): Promise<ScheduleAdjustment> {
     const adjustment = await this.adjustmentRepository.findOne({
       where: { id: adjustmentId },
-      relations: ['task', 'task.project']
+      relations: ['task', 'task.project', 'requestedBy']
     });
 
     if (!adjustment) {
@@ -306,14 +303,13 @@ export class ScheduleAdjustmentService {
 
     const updatedAdjustment = await this.adjustmentRepository.save(adjustment);
 
-    // Notify the requester
+    // In rejectAdjustment method, update the event:
     this.eventEmitter.emit('schedule.adjustment.rejected', {
-      adjustmentId: updatedAdjustment.id,
+      projectId: adjustment.task.project.id,
       taskId: adjustment.task.id,
       taskTitle: adjustment.task.title,
-      rejecterId: rejecter.id,
-      requesterId: adjustment.requestedBy.id,
-      reason
+      reason: reason,
+      recipientId: adjustment.requestedBy.id // Notify requester
     });
 
     return updatedAdjustment;
@@ -324,7 +320,7 @@ export class ScheduleAdjustmentService {
       where: { 
         assignee: { id: userId }, 
         isActive: true,
-        status: Not(TaskStatus.DONE) as any // Fixed Not usage
+        status: Not(TaskStatus.DONE) as any
       }
     });
 

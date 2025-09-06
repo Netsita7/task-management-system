@@ -1,130 +1,201 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Notification, NotificationType } from './notification.entity';
-import { CreateNotificationDto } from './dto/create-notification.dto';
-import { UsersService } from '../users/users.service';
-import { TasksService } from '../tasks/tasks.service';
-import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
+import { Notification, NotificationType, NotificationStatus } from './notification.entity';
+import { User } from '../users/user.entity';
+import { Project } from '../projects/project.entity';
+import { Task } from '../tasks/task.entity';
 
 @Injectable()
 export class NotificationsService {
   constructor(
     @InjectRepository(Notification)
     private notificationsRepository: Repository<Notification>,
-    private usersService: UsersService,
-    private tasksService: TasksService,
-    private eventEmitter: EventEmitter2,
   ) {}
 
-  async create(createNotificationDto: CreateNotificationDto): Promise<Notification> {
-    const recipient = await this.usersService.findOne(createNotificationDto.recipientId);
+  async createNotification(
+    recipient: User,
+    type: NotificationType,
+    message: string,
+    project?: Project,
+    task?: Task,
+    metadata?: any
+  ): Promise<Notification> {
     const notification = this.notificationsRepository.create({
-      ...createNotificationDto,
       recipient,
+      type,
+      message,
+      project,
+      task,
+      metadata,
+      status: NotificationStatus.UNREAD,
+      isActive: true
     });
 
-    if (createNotificationDto.taskId) {
-      try {
-        const task = await this.tasksService.findOne(
-          createNotificationDto.taskId,
-          recipient
-        );
-        notification.task = task;
-      } catch (error) {
-        // Task might not exist, but we can still create the notification
-        console.warn('Task not found for notification:', createNotificationDto.taskId);
-      }
+    return this.notificationsRepository.save(notification);
+  }
+
+  async getUserNotifications(userId: string): Promise<Notification[]> {
+    return this.notificationsRepository.find({
+      where: { 
+        recipient: { id: userId }, 
+        isActive: true 
+      },
+      relations: ['project', 'task'],
+      order: { createdAt: 'DESC' },
+      take: 50 // Limit to recent notifications
+    });
+  }
+
+  async markAsRead(notificationId: string, userId: string): Promise<Notification> {
+    const notification = await this.notificationsRepository.findOne({
+      where: { id: notificationId, recipient: { id: userId } }
+    });
+
+    if (!notification) {
+      throw new Error('Notification not found');
     }
 
-    return await this.notificationsRepository.save(notification);
-  }
-
-  async createTaskAssignmentNotification(
-    recipientId: string,
-    taskId: string,
-    message: string,
-  ): Promise<Notification> {
-    return this.create({
-      type: NotificationType.TASK_ASSIGNMENT,
-      message,
-      recipientId,
-      taskId,
-    });
-  }
-
-  async createIssueReportedNotification(
-    recipientId: string,
-    issueId: string,
-    message: string,
-  ): Promise<Notification> {
-    return this.create({
-      type: NotificationType.ISSUE_REPORTED,
-      message,
-      recipientId,
-      taskId: undefined, // Use undefined instead of null
-    });
-  }
-
-  async findAll(): Promise<Notification[]> {
-    return await this.notificationsRepository.find({ 
-      relations: ['recipient', 'task'] 
-    });
-  }
-
-  async findByUser(userId: string): Promise<Notification[]> {
-    return await this.notificationsRepository.find({
-      where: { recipient: { id: userId } },
-      relations: ['task'],
-      order: { createdAt: 'DESC' },
-    });
-  }
-
-  async getUnreadCount(userId: string): Promise<number> {
-    return await this.notificationsRepository.count({
-      where: { recipient: { id: userId }, isRead: false },
-    });
-  }
-
-  async markAsRead(id: string): Promise<Notification | null> {
-    await this.notificationsRepository.update(id, { isRead: true });
-    return this.notificationsRepository.findOne({ where: { id } });
+    notification.status = NotificationStatus.READ;
+    return this.notificationsRepository.save(notification);
   }
 
   async markAllAsRead(userId: string): Promise<void> {
     await this.notificationsRepository.update(
-      { recipient: { id: userId }, isRead: false },
-      { isRead: true },
+      { recipient: { id: userId }, status: NotificationStatus.UNREAD },
+      { status: NotificationStatus.READ }
     );
   }
 
-  async remove(id: string): Promise<void> {
-    await this.notificationsRepository.delete(id);
-  }
-
-  @OnEvent('task.assigned')
-  async handleTaskAssignedEvent(payload: { 
-    recipientId: string; 
-    taskId: string; 
-    message: string; 
-  }) {
-    return this.createTaskAssignmentNotification(
-      payload.recipientId,
-      payload.taskId,
-      payload.message
+  async archiveNotification(notificationId: string, userId: string): Promise<void> {
+    await this.notificationsRepository.update(
+      { id: notificationId, recipient: { id: userId } },
+      { status: NotificationStatus.ARCHIVED }
     );
   }
 
-  @OnEvent('issue.reported')
-  async handleIssueReportedEvent(payload: {
-    recipientId: string;
-    issueId: string;
-    message: string;
-  }) {
-    return this.createIssueReportedNotification(
-      payload.recipientId,
-      payload.issueId,
-      payload.message
+  async getUnreadCount(userId: string): Promise<number> {
+    return this.notificationsRepository.count({
+      where: { 
+        recipient: { id: userId }, 
+        status: NotificationStatus.UNREAD,
+        isActive: true 
+      }
+    });
+  }
+
+  // Specific notification creation methods
+  async createTaskAssignedNotification(assignee: User, task: Task): Promise<Notification> {
+    const message = `You have been assigned to Task #${task.id.slice(-4)} - ${task.title}`;
+    return this.createNotification(
+      assignee,
+      NotificationType.TASK_ASSIGNED,
+      message,
+      task.project,
+      task,
+      { taskId: task.id }
     );
-  } 
+  }
+
+  async createTaskUpdatedNotification(user: User, task: Task, updateType: string, oldValue: any, newValue: any): Promise<Notification> {
+    let message = '';
+    
+    switch (updateType) {
+      case 'status':
+        message = `Task #${task.id.slice(-4)} status updated to ${newValue}`;
+        break;
+      case 'dueDate':
+        message = `The due date for Task #${task.id.slice(-4)} has been changed to ${new Date(newValue).toLocaleDateString()}`;
+        break;
+      case 'priority':
+        message = `Task #${task.id.slice(-4)} priority updated to ${newValue}`;
+        break;
+      default:
+        message = `Task #${task.id.slice(-4)} has been updated`;
+    }
+
+    return this.createNotification(
+      user,
+      NotificationType.TASK_UPDATED,
+      message,
+      task.project,
+      task,
+      { taskId: task.id, updateType, oldValue, newValue }
+    );
+  }
+
+  async createMentionNotification(mentionedUser: User, task: Task, mentionedBy: User, comment: string): Promise<Notification> {
+    const message = `${mentionedBy.firstName} mentioned you in Task #${task.id.slice(-4)}: "${comment.substring(0, 50)}..."`;
+    
+    return this.createNotification(
+      mentionedUser,
+      NotificationType.MENTION,
+      message,
+      task.project,
+      task,
+      { taskId: task.id, mentionedById: mentionedBy.id, comment }
+    );
+  }
+
+  async createRoleChangeNotification(user: User, project: Project, newRole: string): Promise<Notification> {
+    const message = `Your role in ${project.name} has been changed to ${newRole}`;
+    
+    return this.createNotification(
+      user,
+      NotificationType.ROLE_CHANGED,
+      message,
+      project,
+      undefined,
+      { projectId: project.id, newRole }
+    );
+  }
+
+  async createDeadlineReminder(user: User, task: Task, daysUntilDue: number): Promise<Notification> {
+    const message = daysUntilDue > 0 
+      ? `Task #${task.id.slice(-4)} is due in ${daysUntilDue} day${daysUntilDue > 1 ? 's' : ''}`
+      : `Task #${task.id.slice(-4)} is overdue by ${Math.abs(daysUntilDue)} day${Math.abs(daysUntilDue) > 1 ? 's' : ''}`;
+    
+    return this.createNotification(
+      user,
+      NotificationType.DEADLINE_REMINDER,
+      message,
+      task.project,
+      task,
+      { taskId: task.id, daysUntilDue }
+    );
+  }
+
+  async createNewIssueNotification(users: User[], project: Project, issueTitle: string): Promise<Notification[]> {
+    const message = `New issue reported in ${project.name}: "${issueTitle}"`;
+    
+    const notifications = await Promise.all(
+      users.map(user => 
+        this.createNotification(
+          user,
+          NotificationType.NEW_ISSUE,
+          message,
+          project,
+          undefined,
+          { projectId: project.id, issueTitle }
+        )
+      )
+    );
+
+    return notifications;
+  }
+
+  async createTaskCompletedNotification(assignee: User, task: Task, completedBy: User): Promise<Notification> {
+    const message = completedBy.id === assignee.id
+      ? `You marked Task #${task.id.slice(-4)} as completed`
+      : `Task #${task.id.slice(-4)} has been marked as completed by ${completedBy.firstName}`;
+    
+    return this.createNotification(
+      assignee,
+      NotificationType.TASK_COMPLETED,
+      message,
+      task.project,
+      task,
+      { taskId: task.id, completedById: completedBy.id }
+    );
+  }
 }

@@ -9,6 +9,7 @@ import { UsersService } from '../users/users.service';
 import { ProjectsService } from '../projects/projects.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { User } from '../users/user.entity';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class TasksService {
@@ -18,6 +19,7 @@ export class TasksService {
     private usersService: UsersService,
     private projectsService: ProjectsService,
     private eventEmitter: EventEmitter2,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async create(createTaskDto: CreateTaskDto, user: User): Promise<Task> {
@@ -32,7 +34,7 @@ export class TasksService {
       assignee = foundUser;
     }
 
-    // Create task object manually to avoid TypeScript issues
+    // Create task 
     const taskData: Partial<Task> = {
       title: createTaskDto.title,
       description: createTaskDto.description,
@@ -43,7 +45,6 @@ export class TasksService {
       assignee: assignee,
     };
 
-    // Only add dueDate if it's provided and valid
     if (createTaskDto.dueDate) {
       const dueDate = new Date(createTaskDto.dueDate);
       taskData.dueDate = isNaN(dueDate.getTime()) ? undefined : dueDate;
@@ -141,6 +142,31 @@ export class TasksService {
         recipientId: updateData.assignee.id,
         taskId: id,
         message: `You have been assigned to task: ${task.title}`,
+      });
+    }
+
+    // Add status/priority/due date change notifications:
+    if (updateTaskDto.status !== undefined && updateTaskDto.status !== task.status) {
+      this.eventEmitter.emit('task.updated', {
+        recipientId: task.assignee?.id,
+        taskId: id,
+        message: `Task status changed to: ${updateTaskDto.status}`
+      });
+    }
+
+    if (updateTaskDto.priority !== undefined && updateTaskDto.priority !== task.priority) {
+      this.eventEmitter.emit('task.updated', {
+        recipientId: task.assignee?.id,
+        taskId: id,
+        message: `Task priority changed to: ${updateTaskDto.priority}`
+      });
+    }
+
+    if (updateTaskDto.dueDate !== undefined && updateTaskDto.dueDate !== task.dueDate) {
+      this.eventEmitter.emit('task.updated', {
+        recipientId: task.assignee?.id,
+        taskId: id,
+        message: `Task due date changed to: ${updateTaskDto.dueDate}`
       });
     }
     

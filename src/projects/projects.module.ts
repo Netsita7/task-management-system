@@ -13,11 +13,13 @@ import { ScheduleAdjustment } from '../schedule/schedule-adjustment.entity';
 import { ScheduleAdjustmentService } from '../schedule/schedule-adjustment.service';
 import { ScheduleAdjustmentController } from '../schedule/schedule-adjustment.controller';
 import { Task } from '../tasks/task.entity';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Project, ProjectMember, ProjectInvitation, User, ScheduleAdjustment, Task]),
     MailModule,
+    EventEmitterModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({

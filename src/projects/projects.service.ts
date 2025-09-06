@@ -13,6 +13,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ProjectInvitation } from './invitation.entity';
 import { InviteMemberDto } from './dto/invite-member.dto';
 import { InvitationStatus } from './invitation.entity';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @Injectable()
 export class ProjectsService {
@@ -27,6 +28,7 @@ export class ProjectsService {
     private invitationRepository: Repository<ProjectInvitation>,
     private mailService: MailService,
     private jwtService: JwtService,
+    private eventEmitter: EventEmitter2,
   ) {}
 
   async create(createProjectDto: CreateProjectDto, creator: User): Promise<Project> {
@@ -213,6 +215,14 @@ export class ProjectsService {
       token
     );
 
+    // Emit invitation sent event
+  this.eventEmitter.emit('project.invitation.sent', {
+    recipientId: inviteMemberDto.email, // You'll need to get user ID if they exist
+    projectId: projectId,
+    projectName: project.name,
+    inviterName: `${user.firstName} ${user.lastName}`
+  });
+
     return savedInvitation;
   }
 
@@ -259,30 +269,4 @@ export class ProjectsService {
     return member;
   }
 
-  // Update your addMember method to handle existing users
-  // async addMember(projectId: string, addMemberDto: AddMemberDto, user: User): Promise<ProjectMember> {
-  //   const project = await this.findOne(projectId, user);
-    
-  //   // Only admin can add members
-  //   if (!project.isUserAdmin(user.id)) {
-  //     throw new ForbiddenException('Only project admin can add members');
-  //   }
-
-  //   // Check if user is already a member
-  //   const existingMember = project.members.find(member => member.user.id === addMemberDto.userId);
-  //   if (existingMember) {
-  //     throw new ForbiddenException('User is already a member of this project');
-  //   }
-
-  //   // Find the user by ID
-  //   const userToAdd = await this.usersRepository.findOne({
-  //     where: { id: addMemberDto.userId }
-  //   });
-
-  //   if (!userToAdd) {
-  //     throw new NotFoundException('User not found');
-  //   }
-
-  //   return this.addMemberToProject(project, userToAdd, addMemberDto.role || ProjectRole.MEMBER);
-  // }
 }

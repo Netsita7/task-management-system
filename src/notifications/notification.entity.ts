@@ -4,11 +4,21 @@ import { Project } from '../projects/project.entity';
 import { Task } from '../tasks/task.entity';
 
 export enum NotificationType {
-  PROJECT_ASSIGNMENT = 'project_assignment',
-  TASK_ASSIGNMENT = 'task_assignment',
+  TASK_ASSIGNED = 'task_assignment',
+  TASK_UPDATED = 'task_updated',
+  MENTION = 'mention',
+  ROLE_CHANGED = 'role_changed',
   DEADLINE_REMINDER = 'deadline_reminder',
-  ISSUE_REPORTED = 'issue_reported',
-  PROJECT_REMINDER = "PROJECT_REMINDER",
+  NEW_ISSUE = 'new_issue',
+  TASK_COMPLETED = 'task_completed',
+  SCHEDULE_ADJUSTMENT = 'schedule_adjustment',
+  PROJECT_INVITATION = 'project_invitation' 
+}
+
+export enum NotificationStatus {
+  UNREAD = 'unread',
+  READ = 'read',
+  ARCHIVED = 'archived'
 }
 
 @Entity('notifications')
@@ -16,27 +26,33 @@ export class Notification {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => User, { eager: true })
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
   recipient: User;
+
+  @Column({
+    type: 'enum',
+    enum: NotificationType
+  })
+  type: NotificationType;
 
   @Column()
   message: string;
 
-  @Column({
-    type: 'enum',
-    enum: NotificationType,
-    default: NotificationType.PROJECT_ASSIGNMENT
-  })
-  type: NotificationType;
-
   @ManyToOne(() => Project, { nullable: true })
-  project?: Project;
+  project: Project;
 
   @ManyToOne(() => Task, { nullable: true })
-  task?: Task;
+  task: Task;
 
-  @Column({ default: false })
-  isRead: boolean;
+  @Column({ type: 'jsonb', nullable: true })
+  metadata: any;
+
+  @Column({
+    type: 'enum',
+    enum: NotificationStatus,
+    default: NotificationStatus.UNREAD
+  })
+  status: NotificationStatus;
 
   @CreateDateColumn()
   createdAt: Date;
