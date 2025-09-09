@@ -160,14 +160,12 @@ export class ScheduleAdjustmentService {
         throw new BadRequestException('New assignee must be a project member');
       }
 
-      // Check new assignee's workload
       const newAssigneeWorkload = await this.getUserWorkload(createDto.newAssigneeId);
       if (newAssigneeWorkload.totalTasks >= 10) {
         throw new BadRequestException('New assignee has too many tasks already');
       }
     }
 
-    // Create the adjustment request
     const adjustmentData: Partial<ScheduleAdjustment> = {
       type: createDto.type,
       task,
@@ -181,7 +179,6 @@ export class ScheduleAdjustmentService {
       status: AdjustmentStatus.PENDING
     };
 
-    // Add conditional fields
     if (createDto.newAssigneeId) {
       adjustmentData.newAssignee = { id: createDto.newAssigneeId } as User;
     }
@@ -201,7 +198,6 @@ export class ScheduleAdjustmentService {
     const adjustment = this.adjustmentRepository.create(adjustmentData);
     const savedAdjustment = await this.adjustmentRepository.save(adjustment);
 
-    // In requestAdjustment method, update the event:
     this.eventEmitter.emit('schedule.adjustment.requested', {
       projectId: task.project.id,
       taskId: task.id,
@@ -230,7 +226,6 @@ export class ScheduleAdjustmentService {
       throw new BadRequestException('Adjustment is not in pending status');
     }
 
-    // Implement the adjustment
     const updateData: Partial<Task> = {};
     
     if (adjustment.type === AdjustmentType.REASSIGNMENT && adjustment.newAssignee) {
