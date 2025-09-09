@@ -109,7 +109,6 @@ export class ScheduleAdjustmentService {
       throw new ForbiddenException('Only project admins can find optimal reassignments');
     }
 
-    // Analyze workload for all team members
     const workloadAnalysis = await this.analyzeTeamWorkload(task.project.id, requester);
     
     // Filter out the current assignee and sort by workload score (lowest first)
