@@ -84,7 +84,6 @@ export class NotificationsService {
     });
   }
 
-  // Specific notification creation methods
   async createTaskAssignedNotification(assignee: User, task: Task): Promise<Notification> {
     const message = `You have been assigned to Task #${task.id.slice(-4)} - ${task.title}`;
     return this.createNotification(
