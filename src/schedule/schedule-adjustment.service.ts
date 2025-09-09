@@ -57,7 +57,6 @@ export class ScheduleAdjustmentService {
 
     const members = project.members.map(member => member.user);
 
-    // Analyze workload for each member
     const workloadAnalysis: WorkloadAnalysis[] = [];
 
     for (const member of members) {
