@@ -80,7 +80,6 @@ export class NotificationListener {
     );
   }
 
-  // Handle deadline reminder events
   @OnEvent('deadline.reminder')
   async handleDeadlineReminder(user: any, task: any, daysUntilDue: number) {
     const message = daysUntilDue > 0 
