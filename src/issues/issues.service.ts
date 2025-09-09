@@ -82,7 +82,6 @@ export class IssuesService {
   async remove(id: string, user: User): Promise<void> {
     const issue = await this.findOne(id, user);
     
-    // Only admin or reporter can delete issues
     if (!issue.project.isUserAdmin(user.id) && issue.reporter.id !== user.id) {
       throw new ForbiddenException('You do not have permission to delete this issue');
     }
