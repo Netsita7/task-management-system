@@ -135,7 +135,6 @@ export class ScheduleAdjustmentService {
       throw new ForbiddenException('You do not have access to this task');
     }
 
-    // Validate based on adjustment type
     if (createDto.type === AdjustmentType.REASSIGNMENT && !createDto.newAssigneeId) {
       throw new BadRequestException('New assignee ID is required for reassignment');
     }
