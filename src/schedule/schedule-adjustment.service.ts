@@ -261,7 +261,6 @@ export class ScheduleAdjustmentService {
 
     await this.taskRepository.update(adjustment.task.id, updateData);
 
-    // Update adjustment status
     adjustment.status = AdjustmentStatus.APPROVED;
     adjustment.approvedBy = approver;
     adjustment.implementedAt = new Date();
