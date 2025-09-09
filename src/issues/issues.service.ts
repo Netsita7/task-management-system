@@ -49,7 +49,6 @@ export class IssuesService {
       throw new NotFoundException('Issue not found');
     }
 
-    // Check if user has access to the project
     if (!issue.project.isUserAdmin(user.id) && !issue.project.isUserMember(user.id)) {
       throw new ForbiddenException('You do not have access to this issue');
     }
