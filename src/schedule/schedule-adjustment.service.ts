@@ -55,7 +55,6 @@ export class ScheduleAdjustmentService {
       relations: ['assignee']
     });
 
-    // Get all project members
     const members = project.members.map(member => member.user);
 
     // Analyze workload for each member
