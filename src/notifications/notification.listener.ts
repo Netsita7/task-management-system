@@ -20,7 +20,7 @@ export class NotificationListener {
     );
   }
 
-  // Handle project invitation events
+  
   @OnEvent('project.invitation.sent')
   async handleProjectInvitation(payload: any) {
     const { recipientId, projectId, inviterName, projectName } = payload;
