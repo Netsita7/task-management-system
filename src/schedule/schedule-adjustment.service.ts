@@ -33,7 +33,6 @@ export class ScheduleAdjustmentService {
   ) {}
 
   async analyzeTeamWorkload(projectId: string, requester: User): Promise<WorkloadAnalysis[]> {
-    // Verify requester has access to the project
     const project = await this.projectRepository.findOne({
       where: { id: projectId, isActive: true },
       relations: ['members', 'members.user']
