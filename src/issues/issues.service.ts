@@ -99,7 +99,6 @@ export class IssuesService {
     });
   }
 
-  // Add a new method to get all issues for user (across all projects)
   async findAllForUser(user: User): Promise<Issue[]> {
     // Get all projects the user has access to
     const projects = await this.projectsService.findAll(user);
