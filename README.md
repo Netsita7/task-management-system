@@ -32,13 +32,7 @@ This API powers a full-featured task management system:
     npm install
     ```
 
-2.  Set up environment variables in a `.env` file:
-    ```
-    DATABASE_URL="postgresql://username:password@localhost:5432/taskflow_db"
-    JWT_SECRET="your-super-secret-jwt-key"
-    ```
-
-3.  Run the application:
+2.  Run the application:
     ```bash
     # development mode
     npm run start:dev
