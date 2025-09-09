@@ -151,7 +151,6 @@ export class ScheduleAdjustmentService {
       throw new BadRequestException('New status is required for status change');
     }
 
-    // Check if new assignee is a project member (for reassignments)
     if (createDto.type === AdjustmentType.REASSIGNMENT && createDto.newAssigneeId) {
       const isMember = task.project.members.some(
         member => member.user.id === createDto.newAssigneeId
