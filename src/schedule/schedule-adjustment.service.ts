@@ -111,7 +111,6 @@ export class ScheduleAdjustmentService {
 
     const workloadAnalysis = await this.analyzeTeamWorkload(task.project.id, requester);
     
-    // Filter out the current assignee and sort by workload score (lowest first)
     const potentialAssignees = workloadAnalysis
       .filter(analysis => analysis.userId !== task.assignee?.id)
       .sort((a, b) => a.workloadScore - b.workloadScore);
