@@ -302,7 +302,6 @@ export class ScheduleAdjustmentService {
 
     const updatedAdjustment = await this.adjustmentRepository.save(adjustment);
 
-    // In rejectAdjustment method, update the event:
     this.eventEmitter.emit('schedule.adjustment.rejected', {
       projectId: adjustment.task.project.id,
       taskId: adjustment.task.id,
