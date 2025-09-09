@@ -30,7 +30,6 @@ export class IssuesService {
 
     const savedIssue = await this.issuesRepository.save(issue);
 
-    // Emit event for notification (to project admin)
     this.eventEmitter.emit('issue.reported', {
       recipientId: project.admin.id,
       issueId: savedIssue.id,
