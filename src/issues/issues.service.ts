@@ -63,7 +63,6 @@ export class IssuesService {
   async update(id: string, updateIssueDto: UpdateIssueDto, user: User): Promise<Issue> {
     const issue = await this.findOne(id, user);
     
-    // Only project members can update issues
     if (!issue.project.isUserAdmin(user.id) && !issue.project.isUserMember(user.id)) {
       throw new ForbiddenException('You do not have permission to update this issue');
     }
