@@ -15,7 +15,7 @@ This API powers a full-featured task management system:
 *   **Progress Tracking**: Monitor the status of tasks and projects in real-time.
 *   **Deadlines & Scheduling**: Set due dates and adjust work schedules.
 *   **Issue Tracking**: Log and track issues during project execution.
-*   **Real-time Notifications**: Instant alerts for users when assigned a new task.
+*   **Notifications**: Instant alerts for users when assigned a new task.
 
 ## 🚀 Getting Started
 
