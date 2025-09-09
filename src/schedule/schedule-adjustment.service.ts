@@ -76,7 +76,6 @@ export class ScheduleAdjustmentService {
         task.dueDate && task.dueDate <= sevenDaysFromNow && task.dueDate >= now
       ).length;
 
-      // Calculate workload score (simplified algorithm)
       const workloadScore = memberTasks.length * 0.3 + 
                           highPriorityTasks * 0.4 + 
                           overdueTasks * 0.5 + 
