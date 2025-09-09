@@ -46,7 +46,6 @@ export class ScheduleAdjustmentService {
       throw new ForbiddenException('You do not have access to this project');
     }
 
-    // Get all active tasks in the project
     const tasks = await this.taskRepository.find({
       where: { 
         project: { id: projectId }, 
