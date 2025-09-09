@@ -100,7 +100,6 @@ export class IssuesService {
   }
 
   async findAllForUser(user: User): Promise<Issue[]> {
-    // Get all projects the user has access to
     const projects = await this.projectsService.findAll(user);
     const projectIds = projects.map(project => project.id);
     
