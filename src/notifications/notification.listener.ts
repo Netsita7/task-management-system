@@ -7,7 +7,6 @@ import { NotificationType } from './notification.entity';
 export class NotificationListener {
   constructor(private readonly notificationsService: NotificationsService) {}
 
-  // Handle task assignment events
   @OnEvent('task.assigned')
   async handleTaskAssigned(payload: any) {
     const { recipientId, taskId, message } = payload;
