@@ -115,7 +115,6 @@ export class ScheduleAdjustmentService {
       .filter(analysis => analysis.userId !== task.assignee?.id)
       .sort((a, b) => a.workloadScore - b.workloadScore);
 
-    // Get user details for the top 3 candidates
     const topCandidateIds = potentialAssignees.slice(0, 3).map(analysis => analysis.userId);
     const candidates = await this.userRepository.findByIds(topCandidateIds);
 
