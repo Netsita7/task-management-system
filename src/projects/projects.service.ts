@@ -103,7 +103,6 @@ export class ProjectsService {
   async remove(id: string, user: User): Promise<void> {
     const project = await this.findOne(id, user);
     
-    // Only admin can delete project
     if (!project.isUserAdmin(user.id)) {
       throw new ForbiddenException('Only project admin can delete the project');
     }
@@ -114,12 +113,10 @@ export class ProjectsService {
   async addMember(projectId: string, addMemberDto: AddMemberDto, user: User): Promise<ProjectMember> {
     const project = await this.findOne(projectId, user);
     
-    // Only admin can add members
     if (!project.isUserAdmin(user.id)) {
       throw new ForbiddenException('Only project admin can add members');
     }
 
-    // Check if user is already a member
     const existingMember = project.members.find(member => member.user.id === addMemberDto.userId);
     if (existingMember) {
       throw new ForbiddenException('User is already a member of this project');
@@ -131,12 +128,10 @@ export class ProjectsService {
   async removeMember(projectId: string, memberId: string, user: User): Promise<void> {
     const project = await this.findOne(projectId, user);
     
-    // Only admin can remove members
     if (!project.isUserAdmin(user.id)) {
       throw new ForbiddenException('Only project admin can remove members');
     }
 
-    // Cannot remove yourself
     if (memberId === user.id) {
       throw new ForbiddenException('Cannot remove yourself from project');
     }
@@ -154,16 +149,13 @@ export class ProjectsService {
     return this.projectMembersRepository.save(member);
   }
 
-  // methods to invite members
   async inviteMember(projectId: string, inviteMemberDto: InviteMemberDto, user: User): Promise<ProjectInvitation> {
     const project = await this.findOne(projectId, user);
     
-    // Only admin can invite members
     if (!project.isUserAdmin(user.id)) {
       throw new ForbiddenException('Only project admin can invite members');
     }
 
-    // Check if user is already a member
     const existingMember = project.members.find(member => 
       member.user.email === inviteMemberDto.email
     );
@@ -171,7 +163,6 @@ export class ProjectsService {
       throw new ForbiddenException('User is already a member of this project');
     }
 
-    // Check for existing pending invitation
     const existingInvitation = await this.invitationRepository.findOne({
       where: {
         project: { id: projectId },
@@ -184,18 +175,15 @@ export class ProjectsService {
       throw new ForbiddenException('Invitation already sent to this email');
     }
 
-    // Create invitation token
     const token = this.jwtService.sign({
       projectId,
       email: inviteMemberDto.email,
       role: inviteMemberDto.role || ProjectRole.MEMBER
     }, { expiresIn: '7d' });
 
-    // Calculate expiration date (7 days from now)
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
 
-    // Create invitation
     const invitation = this.invitationRepository.create({
       project,
       email: inviteMemberDto.email,
@@ -207,7 +195,6 @@ export class ProjectsService {
 
     const savedInvitation = await this.invitationRepository.save(invitation);
 
-    // Send invitation email
     await this.mailService.sendInvitationEmail(
       inviteMemberDto.email,
       user.email,
@@ -215,7 +202,6 @@ export class ProjectsService {
       token
     );
 
-    // Emit invitation sent event
   this.eventEmitter.emit('project.invitation.sent', {
     recipientId: inviteMemberDto.email, 
     projectId: projectId,
@@ -226,7 +212,6 @@ export class ProjectsService {
     return savedInvitation;
   }
 
-  // method to accept invitations
   async acceptInvitation(token: string, user: User): Promise<ProjectMember> {
     let payload: any;
     try {
@@ -235,7 +220,6 @@ export class ProjectsService {
       throw new ForbiddenException('Invalid or expired invitation token');
     }
 
-    // Find the invitation
     const invitation = await this.invitationRepository.findOne({
       where: { token, isActive: true },
       relations: ['project']
@@ -255,14 +239,12 @@ export class ProjectsService {
       throw new ForbiddenException('Invitation has expired');
     }
 
-    // Add user to project
     const member = await this.addMemberToProject(
       invitation.project,
       user,
       invitation.role
     );
 
-    // Update invitation status
     invitation.status = InvitationStatus.ACCEPTED;
     await this.invitationRepository.save(invitation);
 
