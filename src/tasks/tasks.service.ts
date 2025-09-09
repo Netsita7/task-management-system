@@ -33,7 +33,6 @@ export class TasksService {
       assignee = foundUser;
     }
 
-    // Create task 
     const taskData: Partial<Task> = {
       title: createTaskDto.title,
       description: createTaskDto.description,
@@ -52,7 +51,6 @@ export class TasksService {
     const task = this.tasksRepository.create(taskData);
     const savedTask = await this.tasksRepository.save(task);
 
-    // Emit event for notification if assignee exists
     if (assignee) {
       this.eventEmitter.emit('task.assigned', {
         recipientId: assignee.id,
@@ -84,7 +82,6 @@ export class TasksService {
       throw new NotFoundException('Task not found');
     }
 
-    // Check if user has access to the project
     if (!task.project.isUserAdmin(user.id) && !task.project.isUserMember(user.id)) {
       throw new ForbiddenException('You do not have access to this task');
     }
@@ -95,14 +92,12 @@ export class TasksService {
   async update(id: string, updateTaskDto: UpdateTaskDto, user: User): Promise<Task> {
     const task = await this.findOne(id, user);
     
-    // Only project members can update tasks
     if (!task.project.isUserAdmin(user.id) && !task.project.isUserMember(user.id)) {
       throw new ForbiddenException('You do not have permission to update this task');
     }
 
     const updateData: Partial<Task> = {};
     
-    // Update only the fields that are provided
     if (updateTaskDto.title !== undefined) updateData.title = updateTaskDto.title;
     if (updateTaskDto.description !== undefined) updateData.description = updateTaskDto.description;
     if (updateTaskDto.status !== undefined) updateData.status = updateTaskDto.status;
@@ -127,7 +122,6 @@ export class TasksService {
         updateData.assignee = assignee;
         assigneeChanged = true;
       } else if (updateTaskDto.assigneeId === null || updateTaskDto.assigneeId === '') {
-        // Handle unassigning the task
         updateData.assignee = undefined;
         assigneeChanged = true;
       }
@@ -135,7 +129,6 @@ export class TasksService {
 
     await this.tasksRepository.update(id, updateData);
 
-    // Emit event for notification if assignee changed and new assignee exists
     if (assigneeChanged && updateData.assignee) {
       this.eventEmitter.emit('task.assigned', {
         recipientId: updateData.assignee.id,
@@ -144,7 +137,6 @@ export class TasksService {
       });
     }
 
-    // Add status/priority/due date change notifications:
     if (updateTaskDto.status !== undefined && updateTaskDto.status !== task.status) {
       this.eventEmitter.emit('task.updated', {
         recipientId: task.assignee?.id,
@@ -182,7 +174,6 @@ export class TasksService {
   async remove(id: string, user: User): Promise<void> {
     const task = await this.findOne(id, user);
     
-    // Only admin or reporter can delete tasks
     if (!task.project.isUserAdmin(user.id) && task.reporter.id !== user.id) {
       throw new ForbiddenException('You do not have permission to delete this task');
     }
