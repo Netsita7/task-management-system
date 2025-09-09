@@ -35,7 +35,6 @@ export class NotificationListener {
     );
   }
 
-  // Handle schedule adjustment events
   @OnEvent('schedule.adjustment.requested')
   async handleAdjustmentRequest(payload: any) {
     const { projectId, taskId, taskTitle, recipientId } = payload;
