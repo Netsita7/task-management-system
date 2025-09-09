@@ -19,7 +19,6 @@ export class IssuesController {
     if (projectId) {
       return this.issuesService.findByProjectId(projectId, req.user);
     }
-    // You might want to handle the case where no projectId is provided
     throw new Error('projectId query parameter is required');
   }
 
