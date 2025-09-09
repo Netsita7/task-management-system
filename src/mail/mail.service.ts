@@ -17,7 +17,7 @@ export class MailService {
     console.log(`Project: ${projectName}`);
     console.log(`Invitation Token: ${token}`);
     console.log('Use this token to test the accept-invitation endpoint');
-    console.log('=====================================');
+    console.log('====================================');
     
   }
 }
