@@ -67,7 +67,6 @@ export class IssuesService {
       throw new ForbiddenException('You do not have permission to update this issue');
     }
 
-    // If status is being updated to RESOLVED, set resolvedAt
     if (updateIssueDto.status === IssueStatus.RESOLVED && issue.status !== IssueStatus.RESOLVED) {
       (updateIssueDto as any).resolvedAt = new Date();
     }
