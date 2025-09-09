@@ -47,10 +47,7 @@ export class ProjectsService {
     });
 
     const savedProject = await this.projectsRepository.save(project);
-    
-    
-    
-
+  
     return savedProject;
   }
 
@@ -76,7 +73,6 @@ export class ProjectsService {
       throw new NotFoundException('Project not found');
     }
 
-    // Check if user has access to the project
     if (!project.isUserAdmin(user.id) && !project.isUserMember(user.id)) {
       throw new ForbiddenException('You do not have access to this project');
     }
@@ -87,7 +83,6 @@ export class ProjectsService {
   async update(id: string, updateProjectDto: UpdateProjectDto, user: User): Promise<Project> {
     const project = await this.findOne(id, user);
     
-    // Only admin can update project
     if (!project.isUserAdmin(user.id)) {
       throw new ForbiddenException('Only project admin can update the project');
     }
